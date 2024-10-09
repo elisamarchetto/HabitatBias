@@ -1,0 +1,545 @@
+library(tidyverse)
+library(iNEXT) 
+library(terra)
+library(sf)
+
+d_ESY3_E75 <- readRDS("d_ESY3_E75.rds")
+
+d_ESY3_E75$records <- 1
+
+d_ESY3_G75 <- readRDS("d_ESY3_G75.rds")
+
+d_ESY3_G75$records <- 1
+
+# community matrix IDplots x species
+d_ESY3_E <- d_ESY3_E75 %>%
+  filter(ESY3=="E")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY3_G <- d_ESY3_G75 %>%
+  filter(ESY3=="G")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+matrix_next <- function(x)
+  {
+  m <- pivot_wider(x, names_from =Species, values_from = records, id_cols=PlotObservationID, values_fill = 0) %>% unique()
+  return(m)
+}
+
+# LEVEL 1 E
+mdE <- map(d_ESY3_E$data, ~ matrix_next(.x))
+
+# to remove grid cells with only 1 or 2 plots
+
+single_row_indices <- sapply(mdE, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY3_E %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE <- map(d_matrix$data, ~ matrix_next(.x))
+
+# function to create the indicence frequence of the species
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE <- map(mdE, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE_sr <- map(ldE, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldE_sc <- map(ldE_sr, ~ df_sc(.x)) 
+ldE_sc <- as.data.frame(unlist(ldE_sc))
+ldE_sc <- ldE_sc %>% rename(SC=`unlist(ldE_sc)`)
+
+ldE_sc <- ldE_sc %>% cbind(id=d_matrix$id)
+saveRDS(ldE_sc, "ldE_sc.rds")
+
+# LEVEL 1 G
+mdG <- map(d_ESY3_G$data, ~ matrix_next(.x))
+
+# to remove grid cells with only 1 or 2 plots
+
+single_row_indices <- sapply(mdG, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY3_G %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdG <- map(d_matrix$data, ~ matrix_next(.x))
+
+# function to create the indicence frequence of the species
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldG <- map(mdG, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldG_sr <- map(ldG, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldG_sc <- map(ldG_sr, ~ df_sc(.x)) 
+ldG_sc <- as.data.frame(unlist(ldG_sc))
+ldG_sc <- ldG_sc %>% rename(SC=`unlist(ldG_sc)`)
+
+ldG_sc <- ldG_sc %>% cbind(id=d_matrix$id)
+saveRDS(ldG_sc, "ldG_sc.rds")
+
+## level 2 ###
+
+d_ESY2_E1 <- d_ESY3_E75 %>%
+  filter(ESY2=="E1")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_E2 <- d_ESY3_E75 %>%
+  filter(ESY2=="E2")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_E3 <- d_ESY3_E75 %>%
+  filter(ESY2=="E3")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_E4 <- d_ESY3_E75 %>%
+  filter(ESY2=="E4")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+
+d_ESY2_E5 <- d_ESY3_E75 %>%
+  filter(ESY2=="E5")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+
+d_ESY2_G1 <- d_ESY3_G75 %>%
+  filter(ESY2=="G1")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_G2 <- d_ESY3_G75 %>%
+  filter(ESY2=="G2")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_G3 <- d_ESY3_G75 %>%
+  filter(ESY2=="G3")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+
+
+mdE1 <- map(d_ESY2_E1$data, ~ matrix_next(.x))
+
+# to remove grid cells with only 1 or 2 plots
+
+single_row_indices <- sapply(mdE1, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E1 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE1 <- map(d_matrix$data, ~ matrix_next(.x))
+
+# function to create the indicence frequence of the species
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE1 <- map(mdE1, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE1_sr <- map(ldE1, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+ldE1_sc <- map(ldE1_sr, ~ df_sc(.x)) 
+ldE1_sc <- as.data.frame(unlist(ldE1_sc))
+ldE1_sc <- ldE1_sc %>% rename(SC=`unlist(ldE1_sc)`)
+
+ldE1_sc <- ldE1_sc %>% cbind(id=d_matrix$id)
+
+
+mdE2 <- map(d_ESY2_E2$data, ~ matrix_next(.x))
+
+# to remove grid cells with only 1 or 2 plots
+
+single_row_indices <- sapply(mdE2, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E2 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE2 <- map(d_matrix$data, ~ matrix_next(.x))
+
+# function to create the indicence frequence of the species
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE2 <- map(mdE2, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE2_sr <- map(ldE2, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+ldE2_sc <- map(ldE2_sr, ~ df_sc(.x)) 
+ldE2_sc <- as.data.frame(unlist(ldE2_sc))
+ldE2_sc <- ldE2_sc %>% rename(SC=`unlist(ldE2_sc)`)
+ldE2_sc <- ldE2_sc %>% cbind(id=d_matrix$id)
+
+mdE3 <- map(d_ESY2_E3$data, ~ matrix_next(.x))
+
+# to remove grid cells with only 1 or 2 plots
+
+single_row_indices <- sapply(mdE3, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E3 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE3 <- map(d_matrix$data, ~ matrix_next(.x))
+
+# function to create the indicence frequence of the species
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE3 <- map(mdE3, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE3_sr <- map(ldE3, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldE3_sc <- map(ldE3_sr, ~ df_sc(.x)) 
+ldE3_sc <- as.data.frame(unlist(ldE3_sc))
+ldE3_sc <- ldE3_sc %>% rename(SC=`unlist(ldE3_sc)`)
+ldE3_sc <- ldE3_sc %>% cbind(id=d_matrix$id)
+
+mdE4 <- map(d_ESY2_E4$data, ~ matrix_next(.x))
+
+# to remove grid cells with only 1 or 2 plots
+
+single_row_indices <- sapply(mdE4, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E4 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE4 <- map(d_matrix$data, ~ matrix_next(.x))
+
+# function to create the indicence frequence of the species
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE4 <- map(mdE4, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE4_sr <- map(ldE4, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldE4_sc <- map(ldE4_sr, ~ df_sc(.x)) 
+ldE4_sc <- as.data.frame(unlist(ldE4_sc))
+ldE4_sc <- ldE4_sc %>% rename(SC=`unlist(ldE4_sc)`)
+ldE4_sc <- ldE4_sc %>% cbind(id=d_matrix$id)
+
+mdE5 <- map(d_ESY2_E5$data, ~ matrix_next(.x))
+
+# to remove grid cells with only 1 or 2 plots
+
+single_row_indices <- sapply(mdE5, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E5 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE5 <- map(d_matrix$data, ~ matrix_next(.x))
+
+# function to create the indicence frequence of the species
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE5 <- map(mdE5, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE5_sr <- map(ldE5, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldE5_sc <- map(ldE5_sr, ~ df_sc(.x)) 
+ldE5_sc <- as.data.frame(unlist(ldE5_sc))
+ldE5_sc <- ldE5_sc %>% rename(SC=`unlist(ldE5_sc)`)
+ldE5_sc <- ldE5_sc %>% cbind(id=d_matrix$id)
+
+
+saveRDS(ldE1_sc, "ldE1_sc.rds")
+saveRDS(ldE2_sc, "ldE2_sc.rds")
+saveRDS(ldE3_sc, "ldE3_sc.rds")
+saveRDS(ldE4_sc, "ldE4_sc.rds")
+saveRDS(ldE5_sc, "ldE5_sc.rds")
+
+
+
+mdG1 <- map(d_ESY2_G1$data, ~ matrix_next(.x))
+
+# to remove grid cells with only 1 or 2 plots
+
+single_row_indices <- sapply(mdG1, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_G1 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdG1 <- map(d_matrix$data, ~ matrix_next(.x))
+
+# function to create the indicence frequence of the species
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldG1 <- map(mdG1, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldG1_sr <- map(ldG1, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldG1_sc <- map(ldG1_sr, ~ df_sc(.x)) 
+ldG1_sc <- as.data.frame(unlist(ldG1_sc))
+ldG1_sc <- ldG1_sc %>% rename(SC=`unlist(ldG1_sc)`)
+ldG1_sc <- ldG1_sc %>% cbind(id=d_matrix$id)
+
+mdG2 <- map(d_ESY2_G2$data, ~ matrix_next(.x))
+
+# to remove grid cells with only 1 or 2 plots
+
+single_row_indices <- sapply(mdG2, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_G2 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdG2 <- map(d_matrix$data, ~ matrix_next(.x))
+
+# function to create the indicence frequence of the species
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldG2 <- map(mdG2, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldG2_sr <- map(ldG2, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldG2_sc <- map(ldG2_sr, ~ df_sc(.x)) 
+ldG2_sc <- as.data.frame(unlist(ldG2_sc))
+ldG2_sc <- ldG2_sc %>% rename(SC=`unlist(ldG2_sc)`)
+ldG2_sc <- ldG2_sc %>% cbind(id=d_matrix$id)
+
+
+mdG3 <- map(d_ESY2_G3$data, ~ matrix_next(.x))
+
+# to remove grid cells with only 1 or 2 plots
+
+single_row_indices <- sapply(mdG3, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_G3 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdG3 <- map(d_matrix$data, ~ matrix_next(.x))
+
+# function to create the indicence frequence of the species
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldG3 <- map(mdG3, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldG3_sr <- map(ldG3, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldG3_sc <- map(ldG3_sr, ~ df_sc(.x)) 
+ldG3_sc <- as.data.frame(unlist(ldG3_sc))
+ldG3_sc <- ldG3_sc %>% rename(SC=`unlist(ldG3_sc)`)
+ldG3_sc <- ldG3_sc %>% cbind(id=d_matrix$id)
+
+saveRDS(ldG1_sc, "ldG1_sc.rds")
+saveRDS(ldG2_sc, "ldG2_sc.rds")
+saveRDS(ldG3_sc, "ldG3_sc.rds")
