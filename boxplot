@@ -1,0 +1,305 @@
+dfE <- readRDS("df.E.rds")
+dfG <- readRDS("df.G.rds")
+
+dfE$Habitat <- "E"
+dfG$Habitat <- "G"
+
+
+
+nniE <- readRDS("nniE.rds")
+nniG <- readRDS("nniG.rds")
+
+nniE$Habitat <- "E"
+nniG$Habitat <- "G"
+
+
+
+ComE <- readRDS("ldE_sc.rds")
+ComG <- readRDS("ldG_sc.rds")
+
+ComE$Habitat <- "E"
+ComG$Habitat <- "G"
+
+dfE <- dfE %>% drop_na()
+nniE <- nniE %>% drop_na()
+ComE <- ComE %>% drop_na()
+
+dfG <- dfG %>% drop_na()
+nniG <- nniG %>% drop_na()
+ComG <- ComG %>% drop_na()
+
+totEid <- nniE %>% inner_join(., ComE, by = join_by(id))%>% inner_join(., dfE, by = join_by(id)) %>% select(id)
+
+
+J_E <- dfE %>% inner_join(., totEid, by = join_by(id)) %>% mutate(Value = J) %>% select(- J) 
+Com_E <- ComE %>% inner_join(., totEid, by = join_by(id)) %>% mutate(Value = SC) %>% select(- SC)  
+NNI_E <- nniE %>% inner_join(., totEid, by = join_by(id)) %>% mutate(Value = nni) %>% select(- nni) 
+
+J_E$Bias <- "Temporal"
+Com_E$Bias <- "Taxonomic"
+NNI_E$Bias <- "Spatial"
+
+Etot <- J_E %>% rbind(Com_E) %>% rbind(NNI_E) 
+
+
+totGid <- nniG %>% inner_join(., ComG, by = join_by(id))%>% inner_join(., dfG, by = join_by(id)) %>% select(id)
+
+
+J_G <- dfG %>% inner_join(., totGid, by = join_by(id)) %>% mutate(Value = J) %>% select(- J) 
+Com_G <- ComG %>% inner_join(., totGid, by = join_by(id)) %>% mutate(Value = SC) %>% select(- SC)  
+NNI_G <- nniG %>% inner_join(., totGid, by = join_by(id)) %>% mutate(Value = nni) %>% select(- nni) 
+
+J_G$Bias <- "Temporal"
+Com_G$Bias <- "Taxonomic"
+NNI_G$Bias <- "Spatial"
+
+Gtot <- J_G %>% rbind(Com_G) %>% rbind(NNI_G) 
+
+tot <- Gtot %>% rbind(Etot) %>% drop_na()
+
+library(ggplot2)
+library(dplyr)
+library(viridis)
+library(gghalves)
+
+
+p <- tot %>% mutate(across(Bias, factor, levels=c("Taxonomic","Spatial","Temporal"))) %>%
+    ggplot(., aes(x=Bias, y=Value, fill=Habitat))+ 
+    geom_half_violin(alpha = 0.6, side = "l")+
+    geom_half_boxplot(nudge = 0.05, outlier.color = "gray", side = "r")+
+    scale_fill_manual(values = c("#FDE725FF","#B12A90FF"))+
+    theme_light() +  theme(
+        axis.title.x = element_text(size=14,face = 'bold'),
+        axis.text.x = element_text(size = 10, face = 'bold'),
+        axis.title.y = element_text(size=14,face = 'bold'),
+        axis.text.y = element_text(size = 10, face = 'bold'),
+        axis.ticks.y=element_blank(),
+        text = element_text(size=12), 
+        strip.text = element_text(size=12))
+
+jpeg("boxplot1.jpeg",
+     width = 10,
+     height = 8,
+     res = 300, units="in")
+p
+dev.off()
+
+dfE1 <- readRDS("df.E1.rds")
+nniE1 <- readRDS("nniE1.rds")
+ComE1 <- readRDS("ldE1_sc.rds")
+
+dfE1 <- dfE1 %>% drop_na()
+nniE1 <- nniE1 %>% drop_na()
+ComE1 <- ComE1 %>% drop_na()
+
+totE1id <- nniE1 %>% inner_join(., ComE1, by = join_by(id))%>% inner_join(., dfE1, by = join_by(id)) %>% select(id)
+
+nniE1$Habitat <- "E1"
+ComE1$Habitat <- "E1"
+dfE1$Habitat <- "E1"
+
+J_E1 <- dfE1 %>% inner_join(., totE1id, by = join_by(id)) %>% mutate(Value = J) %>% select(- J) 
+Com_E1 <- ComE1 %>% inner_join(., totE1id, by = join_by(id)) %>% mutate(Value = SC) %>% select(- SC)  
+NNI_E1 <- nniE1 %>% inner_join(., totE1id, by = join_by(id)) %>% mutate(Value = nni) %>% select(- nni) 
+
+J_E1$Bias <- "Temporal"
+Com_E1$Bias <- "Taxonomic"
+NNI_E1$Bias <- "Spatial"
+
+E1tot <- J_E1 %>% rbind(Com_E1) %>% rbind(NNI_E1) 
+
+
+dfE2 <- readRDS("df.E2.rds")
+nniE2 <- readRDS("nniE2.rds")
+ComE2 <- readRDS("ldE2_sc.rds")
+
+dfE2 <- dfE2 %>% drop_na()
+nniE2 <- nniE2 %>% drop_na()
+ComE2 <- ComE2 %>% drop_na()
+
+totE2id <- nniE2 %>% inner_join(., ComE2, by = join_by(id))%>% inner_join(., dfE2, by = join_by(id)) %>% select(id)
+
+nniE2$Habitat <- "E2"
+ComE2$Habitat <- "E2"
+dfE2$Habitat <- "E2"
+
+J_E2 <- dfE2 %>% inner_join(., totE2id, by = join_by(id)) %>% mutate(Value = J) %>% select(- J) 
+Com_E2 <- ComE2 %>% inner_join(., totE2id, by = join_by(id)) %>% mutate(Value = SC) %>% select(- SC)  
+NNI_E2 <- nniE2 %>% inner_join(., totE2id, by = join_by(id)) %>% mutate(Value = nni) %>% select(- nni) 
+
+J_E2$Bias <- "Temporal"
+Com_E2$Bias <- "Taxonomic"
+NNI_E2$Bias <- "Spatial"
+
+E2tot <- J_E2 %>% rbind(Com_E2) %>% rbind(NNI_E2) 
+
+
+dfE3 <- readRDS("df.E3.rds")
+nniE3 <- readRDS("nniE3.rds")
+ComE3 <- readRDS("ldE3_sc.rds")
+
+dfE3 <- dfE3 %>% drop_na()
+nniE3 <- nniE3 %>% drop_na()
+ComE3 <- ComE3 %>% drop_na()
+
+totE3id <- nniE3 %>% inner_join(., ComE3, by = join_by(id))%>% inner_join(., dfE3, by = join_by(id)) %>% select(id)
+
+nniE3$Habitat <- "E3"
+ComE3$Habitat <- "E3"
+dfE3$Habitat <- "E3"
+
+J_E3 <- dfE3 %>% inner_join(., totE3id, by = join_by(id)) %>% mutate(Value = J) %>% select(- J) 
+Com_E3 <- ComE3 %>% inner_join(., totE3id, by = join_by(id)) %>% mutate(Value = SC) %>% select(- SC)  
+NNI_E3 <- nniE3 %>% inner_join(., totE3id, by = join_by(id)) %>% mutate(Value = nni) %>% select(- nni) 
+
+J_E3$Bias <- "Temporal"
+Com_E3$Bias <- "Taxonomic"
+NNI_E3$Bias <- "Spatial"
+
+E3tot <- J_E3 %>% rbind(Com_E3) %>% rbind(NNI_E3) 
+
+
+dfE4 <- readRDS("df.E4.rds")
+nniE4 <- readRDS("nniE4.rds")
+ComE4 <- readRDS("ldE4_sc.rds")
+
+dfE4 <- dfE4 %>% drop_na()
+nniE4 <- nniE4 %>% drop_na()
+ComE4 <- ComE4 %>% drop_na()
+
+totE4id <- nniE4 %>% inner_join(., ComE4, by = join_by(id))%>% inner_join(., dfE4, by = join_by(id)) %>% select(id)
+
+nniE4$Habitat <- "E4"
+ComE4$Habitat <- "E4"
+dfE4$Habitat <- "E4"
+
+J_E4 <- dfE4 %>% inner_join(., totE4id, by = join_by(id)) %>% mutate(Value = J) %>% select(- J) 
+Com_E4 <- ComE4 %>% inner_join(., totE4id, by = join_by(id)) %>% mutate(Value = SC) %>% select(- SC)  
+NNI_E4 <- nniE4 %>% inner_join(., totE4id, by = join_by(id)) %>% mutate(Value = nni) %>% select(- nni) 
+
+J_E4$Bias <- "Temporal"
+Com_E4$Bias <- "Taxonomic"
+NNI_E4$Bias <- "Spatial"
+
+E4tot <- J_E4 %>% rbind(Com_E4) %>% rbind(NNI_E4) 
+
+dfE5 <- readRDS("df.E5.rds")
+nniE5 <- readRDS("nniE5.rds")
+ComE5 <- readRDS("ldE5_sc.rds")
+ 
+totE5id <- nniE5 %>% inner_join(., ComE5, by = join_by(id))%>% inner_join(., dfE5, by = join_by(id)) %>% select(id)
+
+nniE5$Habitat <- "E5"
+ComE5$Habitat <- "E5"
+dfE5$Habitat <- "E5"
+
+dfE5 <- dfE5 %>% drop_na()
+nniE5 <- nniE5 %>% drop_na()
+ComE5 <- ComE5 %>% drop_na()
+
+J_E5 <- dfE5 %>% inner_join(., totE5id, by = join_by(id)) %>% mutate(Value = J) %>% select(- J) 
+Com_E5 <- ComE5 %>% inner_join(., totE5id, by = join_by(id)) %>% mutate(Value = SC) %>% select(- SC)  
+NNI_E5 <- nniE5 %>% inner_join(., totE5id, by = join_by(id)) %>% mutate(Value = nni) %>% select(- nni) 
+
+J_E5$Bias <- "Temporal"
+Com_E5$Bias <- "Taxonomic"
+NNI_E5$Bias <- "Spatial"
+
+E5tot <- J_E5 %>% rbind(Com_E5) %>% rbind(NNI_E5) 
+
+
+dfG1 <- readRDS("df.G1.rds")
+nniG1 <- readRDS("nniG1.rds")
+ComG1 <- readRDS("ldG1_sc.rds")
+
+dfG1 <- dfG1 %>% drop_na()
+nniG1 <- nniG1 %>% drop_na()
+ComG1 <- ComG1 %>% drop_na()
+
+totG1id <- nniG1 %>% inner_join(., ComG1, by = join_by(id))%>% inner_join(., dfG1, by = join_by(id)) %>% select(id)
+
+nniG1$Habitat <- "G1"
+ComG1$Habitat <- "G1"
+dfG1$Habitat <- "G1"
+
+J_G1 <- dfG1 %>% inner_join(., totG1id, by = join_by(id)) %>% mutate(Value = J) %>% select(- J) 
+Com_G1 <- ComG1 %>% inner_join(., totG1id, by = join_by(id)) %>% mutate(Value = SC) %>% select(- SC)  
+NNI_G1 <- nniG1 %>% inner_join(., totG1id, by = join_by(id)) %>% mutate(Value = nni) %>% select(- nni) 
+
+J_G1$Bias <- "Temporal"
+Com_G1$Bias <- "Taxonomic"
+NNI_G1$Bias <- "Spatial"
+
+G1tot <- J_G1 %>% rbind(Com_G1) %>% rbind(NNI_G1) 
+
+dfG2 <- readRDS("df.G2.rds")
+nniG2 <- readRDS("nniG2.rds")
+ComG2 <- readRDS("ldG2_sc.rds")
+
+dfG2 <- dfG2 %>% drop_na()
+nniG2 <- nniG2 %>% drop_na()
+ComG2 <- ComG2 %>% drop_na()
+
+totG2id <- nniG2 %>% inner_join(., ComG2, by = join_by(id))%>% inner_join(., dfG2, by = join_by(id)) %>% select(id)
+
+nniG2$Habitat <- "G2"
+ComG2$Habitat <- "G2"
+dfG2$Habitat <- "G2"
+
+J_G2 <- dfG2 %>% inner_join(., totG2id, by = join_by(id)) %>% mutate(Value = J) %>% select(- J) 
+Com_G2 <- ComG2 %>% inner_join(., totG2id, by = join_by(id)) %>% mutate(Value = SC) %>% select(- SC)  
+NNI_G2 <- nniG2 %>% inner_join(., totG2id, by = join_by(id)) %>% mutate(Value = nni) %>% select(- nni) 
+
+J_G2$Bias <- "Temporal"
+Com_G2$Bias <- "Taxonomic"
+NNI_G2$Bias <- "Spatial"
+
+G2tot <- J_G2 %>% rbind(Com_G2) %>% rbind(NNI_G2) 
+
+dfG3 <- readRDS("df.G3.rds")
+nniG3 <- readRDS("nniG3.rds")
+ComG3 <- readRDS("ldG3_sc.rds")
+
+dfG3 <- dfG3 %>% drop_na()
+nniG3 <- nniG3 %>% drop_na()
+ComG3 <- ComG3 %>% drop_na()
+
+totG3id <- ComG3 %>% inner_join(., nniG3, by = join_by(id))%>% inner_join(., dfG3, by = join_by(id)) %>% select(id)
+
+nniG3$Habitat <- "G3"
+ComG3$Habitat <- "G3"
+dfG3$Habitat <- "G3"
+
+J_G3 <- dfG3 %>% inner_join(., totG3id, by = join_by(id)) %>% mutate(Value = J) %>% select(- J) 
+Com_G3 <- ComG3 %>% inner_join(., totG3id, by = join_by(id)) %>% mutate(Value = SC) %>% select(- SC)  
+NNI_G3 <- nniG3 %>% inner_join(., totG3id, by = join_by(id)) %>% mutate(Value = nni) %>% select(- nni) 
+
+J_G3$Bias <- "Temporal"
+Com_G3$Bias <- "Taxonomic"
+NNI_G3$Bias <- "Spatial"
+
+G3tot <- J_G3 %>% rbind(Com_G3) %>% rbind(NNI_G3) 
+
+tot <- G3tot %>% rbind(G2tot) %>% rbind(G1tot) %>% rbind(E1tot) %>% rbind(E2tot) %>% rbind(E3tot) %>% rbind(E4tot) %>% rbind(E5tot) %>% drop_na()
+
+
+p <- tot %>% mutate(across(Bias, factor, levels=c("Taxonomic","Spatial","Temporal"))) %>%
+     ggplot(., aes(x=Habitat, y=Value, fill=Bias)) + 
+     geom_half_violin(alpha = 0.6, side = "l")+
+    geom_half_boxplot(nudge = 0.05, outlier.color = "gray", side = "r")+
+    scale_fill_manual(values = c("#FDE725FF","#B12A90FF", "#22A884FF"))+
+    theme_light() +  theme(
+                              axis.title.x = element_text(size=14,face = 'bold'),
+                                  axis.text.x = element_text(size = 10, face = 'bold'),
+                                   axis.title.y = element_text(size=14,face = 'bold'),
+                                  axis.text.y = element_text(size = 10, face = 'bold'),
+                                  axis.ticks.y=element_blank(),
+                                   text = element_text(size=12), 
+                                   strip.text = element_text(size=12))
+
+jpeg("boxplot2.jpeg",
+     width = 12,
+     height = 8,
+     res = 300, units="in")
+p
+dev.off()
