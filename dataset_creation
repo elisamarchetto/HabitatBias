@@ -2,7 +2,7 @@
 https://idata.idiv.de/ddm/Data/ShowData/3474?version=76
 
 library(sf) # version ‘1.0.16’
-library(terra) # version ‘1.7.71’
+library(terra) # version ‘1.7.78’
 library(tidyverse) # version ‘2.0.0’
 
 # download sPlotOpen dataset directly from R
@@ -27,28 +27,78 @@ d <- merge(species_level, data[["header"]], by = 'PlotObservationID')
 d <- d[d$Continent=='Europe',]
 d <- d %>% filter(Location_uncertainty < 250)
 
-# European grid: 1) raster layer of 0.5 degree 2) projection in LAEA crs(10km of spatial resolution)
+# Remove ambigous character in EUNIS habitat types
 
 esy <- d%>%filter(!ESY=="?") %>%filter(!ESY=="+") %>% dplyr::select(ESY)%>%distinct()%>%drop_na()
 
 d_esy <- d %>% inner_join(., esy, by="ESY")
 
-#level2
+# filter only for level2
 
 d_esy$ESY2<- substr(d_esy$ESY, 1, 2)
 d_esy <- d_esy %>% filter(!ESY2=="Y-")
 
 
-#level1
+# filter only for level1
 
 d_esy$ESY3<- substr(d_esy$ESY2, 1, 1)
+
+# select only habitats included in level 1 E and G
 
 v <- c("G", "E")
 d_esy <- d_esy[d_esy$ESY3 %in% v, ]
 
 #################### CLC aggregation ########################
 
+r<-rast("U2018_CLC2012_V2020_20u1.tif")
+
+e <- ext( 1909258, 7088873, 1126797, 6859958)
+r<- crop(r, e)
+
+# Crosswalk subsetting of the classes
+
+yG <- subst(r, c(16, 17, 23, 24, 25, 28),  c(16, 17, 23, 24, 25, 28),others=NA)
+yE <- subst(r, c(11, 10, 18, 26, 27, 28, 29, 30),  c(11, 10, 18, 26, 27, 28, 29, 30),others=NA)
+
+writeRaster(yG, "yG.tif")
+writeRaster(yE, "yE.tif")
+
+# Aggregation condition
+
+freq <- function(x) {
+    if (sum(is.na(x)) >= 0.75 * length(x)) {
+        return(NA)
+    } else {
+        return(median(x, na.rm = TRUE))
+    }
+ }
+
+yGe75_10 <- aggregate(yG, fact=100, fun = freq) 
+
+# vectorizing
+
+yGe75_10v <- as.polygons(yGe75_10, value=FALSE, dissolve=FALSE)
+yGev.sf <- st_as_sf(yGe75_10v)
+yGev.sf <- st_make_valid(yGev.sf)
+
+# Assigning id
+
+yGev.sf$lyr.1 <- rownames(yGev.sf)
+
+#yEe75_10 <- rast("yEe75_10.tif")
+
+yEe75_10 <- aggregate(yE, fact=100, fun = freq) 
+yEe75_10v <- as.polygons(yEe75_10, value=FALSE, dissolve=FALSE)
+yEev.sf <- st_as_sf(yEe75_10v)
+yEev.sf <- st_make_valid(yEev.sf)
+yEev.sf$lyr.1 <- rownames(yEev.sf)
+
+
+
 #################### d G ########################
+
+# spatial points and coordinates change
+
 dcoord_ESY3_G <- d_esy %>%
   filter(ESY3=="G")%>%
   dplyr::select(Longitude, Latitude, PlotObservationID)%>%
@@ -58,10 +108,8 @@ dcoord_ESY3_G <- d_esy %>%
   st_transform(crs = st_crs(3035)) %>%
   st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))
 
-yGe75_10v <- as.polygons(yGe75_10, value=FALSE, dissolve=FALSE)
-yGev.sf <- st_as_sf(yGe75_10v)
-yGev.sf <- st_make_valid(yGev.sf)
-yGev.sf$lyr.1 <- rownames(yGev.sf)
+# spatial points of plots and grid intersection 
+
 OV <- st_intersects(dcoord_ESY3_G, yGev.sf)
 
 OVG <- purrr::map_depth(OV, 1, ~ifelse(is.null(.x), NA, .x) )
@@ -110,10 +158,6 @@ dcoord_ESY3_E <- d_esy %>%
   st_transform(crs = st_crs(3035)) %>%
   st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))
 
-yEe75_10v <- as.polygons(yEe75_10, value=FALSE, dissolve=FALSE)
-yEev.sf <- st_as_sf(yEe75_10v)
-yEev.sf <- st_make_valid(yEev.sf)
-yEev.sf$lyr.1 <- rownames(yEev.sf)
 OV <- st_intersects(dcoord_ESY3_E, yEev.sf)
 
 OVE <- purrr::map_depth(OV, 1, ~ifelse(is.null(.x), NA, .x) )
