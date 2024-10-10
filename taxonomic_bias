@@ -1,9 +1,11 @@
 library(tidyverse)
-library(iNEXT) 
+library(iNEXT) version ‘3.0.1’
 library(terra)
 library(sf)
 
 d_ESY3_E75 <- readRDS("d_ESY3_E75.rds")
+
+# add incidence presence value for each species
 
 d_ESY3_E75$records <- 1
 
@@ -56,6 +58,8 @@ list_next <- function(x)
 
 ldE <- map(mdE, ~ list_next(.x))
 
+# apply iNEXT function to calculate the Completeness of species richness
+
 inext <- function(x)
 {
   ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
@@ -71,6 +75,7 @@ df_sc <- function(x)
   return( ld_sc)
 }
 
+# select completeness
 
 ldE_sc <- map(ldE_sr, ~ df_sc(.x)) 
 ldE_sc <- as.data.frame(unlist(ldE_sc))
@@ -82,14 +87,10 @@ saveRDS(ldE_sc, "ldE_sc.rds")
 # LEVEL 1 G
 mdG <- map(d_ESY3_G$data, ~ matrix_next(.x))
 
-# to remove grid cells with only 1 or 2 plots
-
 single_row_indices <- sapply(mdG, function(df) nrow(df) %in% c(1, 2))
 
 d_matrix <- d_ESY3_G %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
 mdG <- map(d_matrix$data, ~ matrix_next(.x))
-
-# function to create the indicence frequence of the species
 
 list_next <- function(x)
 {
@@ -196,14 +197,12 @@ d_ESY2_G3 <- d_ESY3_G75 %>%
 
 mdE1 <- map(d_ESY2_E1$data, ~ matrix_next(.x))
 
-# to remove grid cells with only 1 or 2 plots
 
 single_row_indices <- sapply(mdE1, function(df) nrow(df) %in% c(1, 2))
 
 d_matrix <- d_ESY2_E1 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
 mdE1 <- map(d_matrix$data, ~ matrix_next(.x))
 
-# function to create the indicence frequence of the species
 
 list_next <- function(x)
 {
@@ -239,14 +238,13 @@ ldE1_sc <- ldE1_sc %>% cbind(id=d_matrix$id)
 
 mdE2 <- map(d_ESY2_E2$data, ~ matrix_next(.x))
 
-# to remove grid cells with only 1 or 2 plots
 
 single_row_indices <- sapply(mdE2, function(df) nrow(df) %in% c(1, 2))
 
 d_matrix <- d_ESY2_E2 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
 mdE2 <- map(d_matrix$data, ~ matrix_next(.x))
 
-# function to create the indicence frequence of the species
+
 
 list_next <- function(x)
 {
@@ -280,14 +278,12 @@ ldE2_sc <- ldE2_sc %>% cbind(id=d_matrix$id)
 
 mdE3 <- map(d_ESY2_E3$data, ~ matrix_next(.x))
 
-# to remove grid cells with only 1 or 2 plots
 
 single_row_indices <- sapply(mdE3, function(df) nrow(df) %in% c(1, 2))
 
 d_matrix <- d_ESY2_E3 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
 mdE3 <- map(d_matrix$data, ~ matrix_next(.x))
 
-# function to create the indicence frequence of the species
 
 list_next <- function(x)
 {
@@ -322,14 +318,12 @@ ldE3_sc <- ldE3_sc %>% cbind(id=d_matrix$id)
 
 mdE4 <- map(d_ESY2_E4$data, ~ matrix_next(.x))
 
-# to remove grid cells with only 1 or 2 plots
 
 single_row_indices <- sapply(mdE4, function(df) nrow(df) %in% c(1, 2))
 
 d_matrix <- d_ESY2_E4 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
 mdE4 <- map(d_matrix$data, ~ matrix_next(.x))
 
-# function to create the indicence frequence of the species
 
 list_next <- function(x)
 {
@@ -364,14 +358,12 @@ ldE4_sc <- ldE4_sc %>% cbind(id=d_matrix$id)
 
 mdE5 <- map(d_ESY2_E5$data, ~ matrix_next(.x))
 
-# to remove grid cells with only 1 or 2 plots
 
 single_row_indices <- sapply(mdE5, function(df) nrow(df) %in% c(1, 2))
 
 d_matrix <- d_ESY2_E5 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
 mdE5 <- map(d_matrix$data, ~ matrix_next(.x))
 
-# function to create the indicence frequence of the species
 
 list_next <- function(x)
 {
@@ -415,14 +407,12 @@ saveRDS(ldE5_sc, "ldE5_sc.rds")
 
 mdG1 <- map(d_ESY2_G1$data, ~ matrix_next(.x))
 
-# to remove grid cells with only 1 or 2 plots
 
 single_row_indices <- sapply(mdG1, function(df) nrow(df) %in% c(1, 2))
 
 d_matrix <- d_ESY2_G1 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
 mdG1 <- map(d_matrix$data, ~ matrix_next(.x))
 
-# function to create the indicence frequence of the species
 
 list_next <- function(x)
 {
@@ -457,14 +447,12 @@ ldG1_sc <- ldG1_sc %>% cbind(id=d_matrix$id)
 
 mdG2 <- map(d_ESY2_G2$data, ~ matrix_next(.x))
 
-# to remove grid cells with only 1 or 2 plots
 
 single_row_indices <- sapply(mdG2, function(df) nrow(df) %in% c(1, 2))
 
 d_matrix <- d_ESY2_G2 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
 mdG2 <- map(d_matrix$data, ~ matrix_next(.x))
 
-# function to create the indicence frequence of the species
 
 list_next <- function(x)
 {
@@ -500,14 +488,12 @@ ldG2_sc <- ldG2_sc %>% cbind(id=d_matrix$id)
 
 mdG3 <- map(d_ESY2_G3$data, ~ matrix_next(.x))
 
-# to remove grid cells with only 1 or 2 plots
 
 single_row_indices <- sapply(mdG3, function(df) nrow(df) %in% c(1, 2))
 
 d_matrix <- d_ESY2_G3 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
 mdG3 <- map(d_matrix$data, ~ matrix_next(.x))
 
-# function to create the indicence frequence of the species
 
 list_next <- function(x)
 {
