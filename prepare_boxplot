@@ -1,3 +1,8 @@
+library(ggplot2) version ‘3.5.1’
+library(tidyverse)
+library(gghalves) version ‘0.1.4’
+
+
 dfE <- readRDS("df.E.rds")
 dfG <- readRDS("df.G.rds")
 
@@ -28,8 +33,11 @@ dfG <- dfG %>% drop_na()
 nniG <- nniG %>% drop_na()
 ComG <- ComG %>% drop_na()
 
+# matching grid IDs
+
 totEid <- nniE %>% inner_join(., ComE, by = join_by(id))%>% inner_join(., dfE, by = join_by(id)) %>% select(id)
 
+# removing IDs that don't match
 
 J_E <- dfE %>% inner_join(., totEid, by = join_by(id)) %>% mutate(Value = J) %>% select(- J) 
 Com_E <- ComE %>% inner_join(., totEid, by = join_by(id)) %>% mutate(Value = SC) %>% select(- SC)  
@@ -57,11 +65,7 @@ Gtot <- J_G %>% rbind(Com_G) %>% rbind(NNI_G)
 
 tot <- Gtot %>% rbind(Etot) %>% drop_na()
 
-library(ggplot2)
-library(dplyr)
-library(viridis)
-library(gghalves)
-
+# boxblot and distribution of values
 
 p <- tot %>% mutate(across(Bias, factor, levels=c("Taxonomic","Spatial","Temporal"))) %>%
     ggplot(., aes(x=Bias, y=Value, fill=Habitat))+ 
