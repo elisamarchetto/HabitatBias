@@ -1,11 +1,12 @@
 library(tidyverse)
-library(vegan) 
+library(vegan) version ‘2.6.6’ 
 library(terra)
 library(sf)
 
 d_ESY3_E75 <- readRDS("d_ESY3_E75.rds")
 d_ESY3_G75 <- readRDS("d_ESY3_G75.rds")
 
+# create new column with only year of recording
 
 d_ESY3_E75$Year <- substr(d_ESY3_E75$Date_of_recording, 1,4)
 d_ESY3_E75$Year <- as.numeric(d_ESY3_E75$Year)
@@ -14,6 +15,8 @@ d_ESY3_G75$Year <- substr(d_ESY3_G75$Date_of_recording, 1,4)
 d_ESY3_G75$Year <- as.numeric(d_ESY3_G75$Year)
 
 # level 1 E
+
+# calculate number of plots that share the same year of recording within each grid cell
 
 dd <- d_ESY3_E75 %>% filter(ESY3 == "E") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
   group_by(id, Year) %>%
@@ -55,8 +58,6 @@ dd <- d_ESY3_G75 %>% filter(ESY3 == "G") %>% dplyr::select(id, PlotObservationID
   mutate(nPlotY = n()) %>%
   ungroup()
 
-# create wide temporal data.frame
-
 dd %>% dplyr::select(-PlotObservationID)%>%  
   unique() %>%
   mutate(Year=as.numeric(Year)) %>% 
@@ -66,10 +67,6 @@ dd %>% dplyr::select(-PlotObservationID)%>%
 
 ddWide[is.na(ddWide)] <- 0
 
-
-
-
-# calcluate Pielou's evenness
 
 df <- data.frame(S=rowSums(ddWide[,2:85]),
                  H=diversity(ddWide[,2:85]))
@@ -93,7 +90,6 @@ dd <- d_ESY3_E75 %>% filter(ESY2 == "E1") %>% dplyr::select(id, PlotObservationI
   mutate(nPlotY = n()) %>%
   ungroup()
 
-# create wide temporal data.frame
 
 dd %>% dplyr::select(-PlotObservationID)%>%  
   unique() %>%
@@ -105,9 +101,6 @@ dd %>% dplyr::select(-PlotObservationID)%>%
 ddWide[is.na(ddWide)] <- 0
 
 
-
-
-# calcluate Pielou's evenness
 
 df <- data.frame(S=rowSums(ddWide[,2:52]),
                  H=diversity(ddWide[,2:52]))
@@ -126,7 +119,6 @@ dd <- d_ESY3_E75 %>% filter(ESY2 == "E2") %>% dplyr::select(id, PlotObservationI
   mutate(nPlotY = n()) %>%
   ungroup()
 
-# create wide temporal data.frame
 
 dd %>% dplyr::select(-PlotObservationID)%>%  
   unique() %>%
@@ -138,9 +130,6 @@ dd %>% dplyr::select(-PlotObservationID)%>%
 ddWide[is.na(ddWide)] <- 0
 
 
-
-
-# calcluate Pielou's evenness
 
 df <- data.frame(S=rowSums(ddWide[,2:62]),
                  H=diversity(ddWide[,2:62]))
@@ -158,7 +147,6 @@ dd <- d_ESY3_E75 %>% filter(ESY2 == "E3") %>% dplyr::select(id, PlotObservationI
   mutate(nPlotY = n()) %>%
   ungroup()
 
-# create wide temporal data.frame
 
 dd %>% dplyr::select(-PlotObservationID)%>%  
   unique() %>%
@@ -170,9 +158,6 @@ dd %>% dplyr::select(-PlotObservationID)%>%
 ddWide[is.na(ddWide)] <- 0
 
 
-
-
-# calcluate Pielou's evenness
 
 df <- data.frame(S=rowSums(ddWide[,2:49]),
                  H=diversity(ddWide[,2:49]))
@@ -191,7 +176,6 @@ dd <- d_ESY3_E75 %>% filter(ESY2 == "E4") %>% dplyr::select(id, PlotObservationI
   mutate(nPlotY = n()) %>%
   ungroup()
 
-# create wide temporal data.frame
 
 dd %>% dplyr::select(-PlotObservationID)%>%  
   unique() %>%
@@ -203,9 +187,6 @@ dd %>% dplyr::select(-PlotObservationID)%>%
 ddWide[is.na(ddWide)] <- 0
 
 
-
-
-# calcluate Pielou's evenness
 
 df <- data.frame(S=rowSums(ddWide[,2:54]),
                  H=diversity(ddWide[,2:54]))
@@ -224,7 +205,6 @@ dd <- d_ESY3_E75 %>% filter(ESY2 == "E5") %>% dplyr::select(id, PlotObservationI
   mutate(nPlotY = n()) %>%
   ungroup()
 
-# create wide temporal data.frame
 
 dd %>% dplyr::select(-PlotObservationID)%>%  
   unique() %>%
@@ -235,10 +215,6 @@ dd %>% dplyr::select(-PlotObservationID)%>%
 
 ddWide[is.na(ddWide)] <- 0
 
-
-
-
-# calcluate Pielou's evenness
 
 df <- data.frame(S=rowSums(ddWide[,2:38]),
                  H=diversity(ddWide[,2:38]))
@@ -257,7 +233,6 @@ dd <- d_ESY3_G75 %>% filter(ESY2 == "G1") %>% dplyr::select(id, PlotObservationI
   mutate(nPlotY = n()) %>%
   ungroup()
 
-# create wide temporal data.frame
 
 dd %>% dplyr::select(-PlotObservationID)%>%  
   unique() %>%
@@ -268,10 +243,6 @@ dd %>% dplyr::select(-PlotObservationID)%>%
 
 ddWide[is.na(ddWide)] <- 0
 
-
-
-
-# calcluate Pielou's evenness
 
 df <- data.frame(S=rowSums(ddWide[,2:79]),
                  H=diversity(ddWide[,2:79]))
@@ -289,8 +260,6 @@ dd <- d_ESY3_G75 %>% filter(ESY2 == "G2") %>% dplyr::select(id, PlotObservationI
   mutate(nPlotY = n()) %>%
   ungroup()
 
-# create wide temporal data.frame
-
 dd %>% dplyr::select(-PlotObservationID)%>%  
   unique() %>%
   mutate(Year=as.numeric(Year)) %>% 
@@ -300,10 +269,6 @@ dd %>% dplyr::select(-PlotObservationID)%>%
 
 ddWide[is.na(ddWide)] <- 0
 
-
-
-
-# calcluate Pielou's evenness
 
 df <- data.frame(S=rowSums(ddWide[,2:32]),
                  H=diversity(ddWide[,2:32]))
@@ -322,7 +287,6 @@ dd <- d_ESY3_G75 %>% filter(ESY2 == "G3") %>% dplyr::select(id, PlotObservationI
   mutate(nPlotY = n()) %>%
   ungroup()
 
-# create wide temporal data.frame
 
 dd %>% dplyr::select(-PlotObservationID)%>%  
   unique() %>%
@@ -334,9 +298,6 @@ dd %>% dplyr::select(-PlotObservationID)%>%
 ddWide[is.na(ddWide)] <- 0
 
 
-
-
-# calcluate Pielou's evenness
 
 df <- data.frame(S=rowSums(ddWide[,2:77]),
                  H=diversity(ddWide[,2:77]))
