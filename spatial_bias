@@ -118,7 +118,7 @@ OV_l <- unlist(resG)
 
 d_ESY3_G_ov <- cbind(yGev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
 bbox_list <- lapply(d_ESY3_G_ov$geometry, st_bbox) 
-# Convert the list of bboxes to a data frame
+
 bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY3_G_ov$lyr.1))
 
 d_ESY3_G <- d_ESY3_G75 %>%
@@ -193,7 +193,7 @@ OV_l <- unlist(resG1)
 
 d_ESY2_G1_ov <- cbind(yGev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
 bbox_list <- lapply(d_ESY2_G1_ov$geometry, st_bbox) 
-# Convert the list of bboxes to a data frame
+
 bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_G1_ov$lyr.1))
 
 d_ESY2_G1 <- d_ESY3_G75 %>%
@@ -371,11 +371,10 @@ resE1 <- purrr::map_depth(spE1, 1, ~ifelse(is.null(.x), NA, .x) )
 
 OV_l <- unlist(resE1)
 
-# geometric selection of the grids that overlaied the plots then, transformation in bbox
 
 d_ESY2_E1_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
 bbox_list <- lapply(d_ESY2_E1_ov$geometry, st_bbox) 
-# Convert the list of bboxes to a data frame
+
 bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E1_ov$lyr.1))
 
 d_ESY2_E1 <- d_ESY3_E75 %>%
@@ -400,8 +399,6 @@ for (i in 1:102) {
 testE1 <- map(yE1, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
 
 
-# extract from the output large list the nni values
-
 extracted_values.nni <- list()
 for (i in 1:length(testE1)) {
   extracted_values.nni[[i]] <- testE1[[i]][["statistic"]][["R"]]
@@ -421,11 +418,10 @@ resE2 <- purrr::map_depth(spE2, 1, ~ifelse(is.null(.x), NA, .x) )
 
 OV_l <- unlist(resE2)
 
-# geometric selection of the grids that overlaied the plots then, transformation in bbox
 
 d_ESY2_E2_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
 bbox_list <- lapply(d_ESY2_E2_ov$geometry, st_bbox) 
-# Convert the list of bboxes to a data frame
+
 bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E2_ov$lyr.1))
 
 d_ESY2_E2 <- d_ESY3_E75 %>%
@@ -450,8 +446,6 @@ for (i in 1:176) {
 testE2 <- map(yE2, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
 
 
-# extract from the output large list the nni values
-
 extracted_values.nni <- list()
 for (i in 1:length(testE2)) {
   extracted_values.nni[[i]] <- testE2[[i]][["statistic"]][["R"]]
@@ -471,11 +465,10 @@ resE3 <- purrr::map_depth(spE3, 1, ~ifelse(is.null(.x), NA, .x) )
 
 OV_l <- unlist(resE3)
 
-# geometric selection of the grids that overlaied the plots then, transformation in bbox
 
 d_ESY2_E3_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
 bbox_list <- lapply(d_ESY2_E3_ov$geometry, st_bbox) 
-# Convert the list of bboxes to a data frame
+
 bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E3_ov$lyr.1))
 
 d_ESY2_E3 <- d_ESY3_E75 %>%
@@ -500,8 +493,6 @@ for (i in 1:110) {
 testE3 <- map(yE3, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
 
 
-# extract from the output large list the nni values
-
 extracted_values.nni <- list()
 for (i in 1:length(testE3)) {
   extracted_values.nni[[i]] <- testE3[[i]][["statistic"]][["R"]]
@@ -522,11 +513,10 @@ resE4 <- purrr::map_depth(spE4, 1, ~ifelse(is.null(.x), NA, .x) )
 
 OV_l <- unlist(resE4)
 
-# geometric selection of the grids that overlaied the plots then, transformation in bbox
 
 d_ESY2_E4_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
 bbox_list <- lapply(d_ESY2_E4_ov$geometry, st_bbox) 
-# Convert the list of bboxes to a data frame
+
 bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E4_ov$lyr.1))
 
 d_ESY2_E4 <- d_ESY3_E75 %>%
@@ -551,8 +541,6 @@ for (i in 1:32) {
 testE4 <- map(yE4, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
 
 
-# extract from the output large list the nni values
-
 extracted_values.nni <- list()
 for (i in 1:length(testE4)) {
   extracted_values.nni[[i]] <- testE4[[i]][["statistic"]][["R"]]
@@ -572,11 +560,10 @@ resE5 <- purrr::map_depth(spE5, 1, ~ifelse(is.null(.x), NA, .x) )
 
 OV_l <- unlist(resE5)
 
-# geometric selection of the grids that overlaied the plots then, transformation in bbox
 
 d_ESY2_E5_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
 bbox_list <- lapply(d_ESY2_E5_ov$geometry, st_bbox) 
-# Convert the list of bboxes to a data frame
+
 bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E5_ov$lyr.1))
 
 d_ESY2_E5 <- d_ESY3_E75 %>%
@@ -600,8 +587,6 @@ for (i in 1:39) {
 
 testE5 <- map(yE5, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
 
-
-# extract from the output large list the nni values
 
 extracted_values.nni <- list()
 for (i in 1:length(testE5)) {
