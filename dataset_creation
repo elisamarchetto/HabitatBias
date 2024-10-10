@@ -43,11 +43,10 @@ d_esy <- d_esy %>% filter(!ESY2=="Y-")
 
 d_esy$ESY3<- substr(d_esy$ESY2, 1, 1)
 
-
-saveRDS(d_esy,"d_esy.rds")
-
 v <- c("G", "E")
 d_esy <- d_esy[d_esy$ESY3 %in% v, ]
+
+#################### CLC aggregation ########################
 
 #################### d G ########################
 dcoord_ESY3_G <- d_esy %>%
