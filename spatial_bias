@@ -1,8 +1,8 @@
 library(tidyverse)
-library(spatstat) version ‘3.0.8’
+library(spatstat) #version ‘3.0.8’
 library(terra)
 library(sf)
-library(spatstat.explore) version ‘3.2.7’
+library(spatstat.explore) #version ‘3.2.7’
 
 d_ESY3_E75 <- readRDS("d_ESY3_E75.rds")
 d_ESY3_G75 <- readRDS("d_ESY3_G75.rds")
