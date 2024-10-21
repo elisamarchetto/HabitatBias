@@ -1,6 +1,6 @@
-library(ggplot2) version ‘3.5.1’
+library(ggplot2) #version ‘3.5.1’
 library(tidyverse)
-library(gghalves) version ‘0.1.4’
+library(gghalves) #version ‘0.1.4’
 
 
 dfE <- readRDS("df.E.rds")
