@@ -85,8 +85,6 @@ yGev.sf <- st_make_valid(yGev.sf)
 
 yGev.sf$lyr.1 <- rownames(yGev.sf)
 
-#yEe75_10 <- rast("yEe75_10.tif")
-
 yEe75_10 <- aggregate(yE, fact=100, fun = freq) 
 yEe75_10v <- as.polygons(yEe75_10, value=FALSE, dissolve=FALSE)
 yEev.sf <- st_as_sf(yEe75_10v)
