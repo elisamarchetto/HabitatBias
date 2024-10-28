@@ -2520,8 +2520,590 @@ nniE5 <- as.data.frame(nni) %>% cbind(id = d_ESY2_E5$id)
 saveRDS(nniE5, "nniE5.rds")
 
 
+################## Temporal Bias 0.65 ###################
+
+library(vegan) #version ‘2.6.6’ 
 
 
+d_ESY3_E65 <- readRDS("d_ESY3_E65.rds")
+d_ESY3_G65 <- readRDS("d_ESY3_G65.rds")
+
+# create new column with only year of recording
+
+d_ESY3_E65$Year <- substr(d_ESY3_E65$Date_of_recording, 1,4)
+d_ESY3_E65$Year <- as.numeric(d_ESY3_E65$Year)
+
+d_ESY3_G65$Year <- substr(d_ESY3_G65$Date_of_recording, 1,4)
+d_ESY3_G65$Year <- as.numeric(d_ESY3_G65$Year)
+
+# level 1 E
+
+# calculate number of plots that share the same year of recording within each grid cell
+
+dd <- d_ESY3_E65 %>% filter(ESY3 == "E") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+# create wide temporal data.frame
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+df <- data.frame(S=rowSums(ddWide[,2:72]),
+                 H=diversity(ddWide[,2:72]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.E.rds")
+
+# level 1 G
+
+dd <- d_ESY3_G65 %>% filter(ESY3 == "G") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+    group_by(id, Year) %>%
+    mutate(nPlotY = n()) %>%
+    ungroup()
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+    unique() %>%
+    mutate(Year=as.numeric(Year)) %>% 
+    pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+    dplyr::select(id, order(colnames(.))) %>% 
+    as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+df <- data.frame(S=rowSums(ddWide[,2:83]),
+                 H=diversity(ddWide[,2:83]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.G.rds")
+
+# level 2
+
+
+dd <- d_ESY3_E65 %>% filter(ESY2 == "E1") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+    group_by(id, Year) %>%
+    mutate(nPlotY = n()) %>%
+    ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+    unique() %>%
+    mutate(Year=as.numeric(Year)) %>% 
+    pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+    dplyr::select(id, order(colnames(.))) %>% 
+    as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+df <- data.frame(S=rowSums(ddWide[,2:35]),
+                 H=diversity(ddWide[,2:35]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.E1.rds")
+
+dd <- d_ESY3_E65 %>% filter(ESY2 == "E2") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+    group_by(id, Year) %>%
+    mutate(nPlotY = n()) %>%
+    ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+    unique() %>%
+    mutate(Year=as.numeric(Year)) %>% 
+    pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+    dplyr::select(id, order(colnames(.))) %>% 
+    as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+df <- data.frame(S=rowSums(ddWide[,2:45]),
+                 H=diversity(ddWide[,2:45]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.E2.rds")
+
+dd <- d_ESY3_E65 %>% filter(ESY2 == "E3") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+
+df <- data.frame(S=rowSums(ddWide[,2:37]),
+                 H=diversity(ddWide[,2:37]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.E3.rds")
+
+
+
+dd <- d_ESY3_E65 %>% filter(ESY2 == "E4") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+
+df <- data.frame(S=rowSums(ddWide[,2:44]),
+                 H=diversity(ddWide[,2:44]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.E4.rds")
+
+
+
+dd <- d_ESY3_E65 %>% filter(ESY2 == "E5") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+df <- data.frame(S=rowSums(ddWide[,2:29]),
+                 H=diversity(ddWide[,2:29]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.E5.rds")
+
+
+
+dd <- d_ESY3_G65 %>% filter(ESY2 == "G1") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+df <- data.frame(S=rowSums(ddWide[,2:79]),
+                 H=diversity(ddWide[,2:79]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.G1.rds")
+
+
+dd <- d_ESY3_G65 %>% filter(ESY2 == "G2") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+df <- data.frame(S=rowSums(ddWide[,2:30]),
+                 H=diversity(ddWide[,2:30]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.G2.rds")
+
+
+
+dd <- d_ESY3_G65 %>% filter(ESY2 == "G3") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+
+df <- data.frame(S=rowSums(ddWide[,2:75]),
+                 H=diversity(ddWide[,2:75]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.G3.rds")
+
+
+
+############### Temporal Bias 0.85 ##############
+
+d_ESY3_E85 <- readRDS("d_ESY3_E85.rds")
+d_ESY3_G85 <- readRDS("d_ESY3_G85.rds")
+
+# create new column with only year of recording
+
+d_ESY3_E85$Year <- substr(d_ESY3_E85$Date_of_recording, 1,4)
+d_ESY3_E85$Year <- as.numeric(d_ESY3_E85$Year)
+
+d_ESY3_G85$Year <- substr(d_ESY3_G85$Date_of_recording, 1,4)
+d_ESY3_G85$Year <- as.numeric(d_ESY3_G85$Year)
+
+# level 1 E
+
+# calculate number of plots that share the same year of recording within each grid cell
+
+dd <- d_ESY3_E85 %>% filter(ESY3 == "E") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+# create wide temporal data.frame
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+df <- data.frame(S=rowSums(ddWide[,2:79]),
+                 H=diversity(ddWide[,2:79]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.E.rds")
+
+# level 1 G
+
+dd <- d_ESY3_G85 %>% filter(ESY3 == "G") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+    group_by(id, Year) %>%
+    mutate(nPlotY = n()) %>%
+    ungroup()
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+    unique() %>%
+    mutate(Year=as.numeric(Year)) %>% 
+    pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+    dplyr::select(id, order(colnames(.))) %>% 
+    as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+df <- data.frame(S=rowSums(ddWide[,2:88]),
+                 H=diversity(ddWide[,2:88]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.G.rds")
+
+# level 2
+
+
+dd <- d_ESY3_E85 %>% filter(ESY2 == "E1") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+    group_by(id, Year) %>%
+    mutate(nPlotY = n()) %>%
+    ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+    unique() %>%
+    mutate(Year=as.numeric(Year)) %>% 
+    pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+    dplyr::select(id, order(colnames(.))) %>% 
+    as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+df <- data.frame(S=rowSums(ddWide[,2:60]),
+                 H=diversity(ddWide[,2:60]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.E1.rds")
+
+dd <- d_ESY3_E85 %>% filter(ESY2 == "E2") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+    group_by(id, Year) %>%
+    mutate(nPlotY = n()) %>%
+    ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+    unique() %>%
+    mutate(Year=as.numeric(Year)) %>% 
+    pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+    dplyr::select(id, order(colnames(.))) %>% 
+    as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+df <- data.frame(S=rowSums(ddWide[,2:67]),
+                 H=diversity(ddWide[,2:67]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.E2.rds")
+
+dd <- d_ESY3_E85 %>% filter(ESY2 == "E3") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+
+df <- data.frame(S=rowSums(ddWide[,2:56]),
+                 H=diversity(ddWide[,2:56]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.E3.rds")
+
+
+
+dd <- d_ESY3_E85 %>% filter(ESY2 == "E4") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+
+df <- data.frame(S=rowSums(ddWide[,2:62]),
+                 H=diversity(ddWide[,2:62]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.E4.rds")
+
+
+
+dd <- d_ESY3_E85 %>% filter(ESY2 == "E5") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+df <- data.frame(S=rowSums(ddWide[,2:45]),
+                 H=diversity(ddWide[,2:45]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.E5.rds")
+
+
+
+dd <- d_ESY3_G85 %>% filter(ESY2 == "G1") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+df <- data.frame(S=rowSums(ddWide[,2:80]),
+                 H=diversity(ddWide[,2:80]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.G1.rds")
+
+
+dd <- d_ESY3_G85 %>% filter(ESY2 == "G2") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+df <- data.frame(S=rowSums(ddWide[,2:34]),
+                 H=diversity(ddWide[,2:34]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.G2.rds")
+
+
+
+dd <- d_ESY3_G85 %>% filter(ESY2 == "G3") %>% dplyr::select(id, PlotObservationID, Year) %>% unique() %>%
+  group_by(id, Year) %>%
+  mutate(nPlotY = n()) %>%
+  ungroup()
+
+
+dd %>% dplyr::select(-PlotObservationID)%>%  
+  unique() %>%
+  mutate(Year=as.numeric(Year)) %>% 
+  pivot_wider(names_from = Year,values_from = nPlotY) %>% 
+  dplyr::select(id, order(colnames(.))) %>% 
+  as.data.frame() -> ddWide
+
+ddWide[is.na(ddWide)] <- 0
+
+
+
+df <- data.frame(S=rowSums(ddWide[,2:81]),
+                 H=diversity(ddWide[,2:81]))
+df$J <- df$H/log(df$S)
+df$id <- ddWide$id
+
+df <- df%>%dplyr::select(J, id)
+colnames(df) <- c("J","id")
+
+saveRDS(df, "df.G3.rds")
 
 
 
