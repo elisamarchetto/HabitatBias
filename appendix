@@ -1,0 +1,45 @@
+p <- tot %>% 
+  mutate(across(Bias, factor, levels = c("Taxonomic", "Spatial", "Temporal"))) %>%
+  ggplot(aes(x = Habitat, y = Value, fill = Bias)) + 
+  stat_summary(
+    aes(group = Bias, color = Bias),  # Gruppo per Bias, e colore in base a Bias
+    fun.min = ~min(.x),  # Funzione minimo
+    fun.max = ~max(.x),  # Funzione massimo
+    fun = median,        # Mediana
+    geom = "pointrange",  # Visualizza le barre (min e max) con il punto centrale (mediana)
+    position = position_dodge(width = 0.3)  # Evita sovrapposizione tra i gruppi
+  ) +
+  scale_fill_manual(values = c("#3399FF","#FF6600", "#006600")) +  # Colori di riempimento
+  scale_color_manual(values = c("#3399FF","#FF6600", "#006600")) + # Colori delle barre
+  theme_light() + 
+  theme(
+    axis.title.x = element_text(size = 14, face = 'bold'),
+    axis.text.x = element_text(size = 10, face = 'bold'),
+    axis.title.y = element_text(size = 14, face = 'bold'),
+    axis.text.y = element_text(size = 10, face = 'bold'),
+    axis.ticks.y = element_blank(),
+    text = element_text(size = 12), 
+    strip.text = element_text(size = 12)
+  )
+
+p
+
+
+
+library(boot)
+
+median_fun <- function(x=NULL, indices) {
+  median(x[indices])
+}
+
+bootstrap_results <- boot(Com_G2$Value, statistic = median_fun, R = 1000)
+
+# Vedere i risultati del bootstrap
+print(bootstrap_results)
+
+# Calcolare l'Errore Standard della Mediana (SEM)
+sem_median <- sd(bootstrap_results$t)
+sem_median  
+
+J1 <- as.data.frame(rbind(J_E, J_G))
+wilcox.test1J <- wilcox.test(Value ~ Habitat, data= J1)
