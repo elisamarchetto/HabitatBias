@@ -3167,12 +3167,68 @@ p
 dev.off()
 
 ########################### Statistic tests 0.75 threshold ###########################
+library(FSA)
+
+ComEG <- as.data.frame(rbind(Com_E, Com_G))
+NNIEG <- as.data.frame(rbind(NNI_E, NNI_G))
+JEG <- as.data.frame(rbind(J_E, J_G))
+
+# Wilcoxon text
+wilcox.test(Value ~ Habitat, data = ComEG)
+wilcox.test(Value ~ Habitat, data = NNIEG)
+wilcox.test(Value ~ Habitat, data = JEG)
+
+Com2 <- as.data.frame(rbind(Com_E1, Com_E2, Com_E3, Com_E4, Com_E5, Com_G1, Com_G2, Com_G3))
+NNI2 <- as.data.frame(rbind(NNI_E1, NNI_E2, NNI_E3, NNI_E4, NNI_E5, NNI_G1, NNI_G2, NNI_G3))
+J2 <- as.data.frame(rbind(J_E1, J_E2, J_E3, J_E4, J_E5, J_G1, J_G2, J_G3))
+
+# Kruskal-Wallis test
+Kruskal_C <- kruskal.test(Value ~ Habitat, data = Com2)
+Kruskal_NNI <- kruskal.test(Value ~ Habitat, data = NNI2)
+Kruskal_J <- kruskal.test(Value ~ Habitat, data = J2)
+
+# Dunn's test
+# we reported in Appendix the values of Kruskal-Wallis test from these functions
+DJ <- dunnTest(Value ~ Habitat, data = J2)
+DNNI <- dunnTest(Value ~ Habitat, data = NNI2)
 
 
+########################### Statistic tests 0.75 threshold ###########################
 
+# same functions for 0.65 and 0.85 of threshold
 
+mean(Com_E$Value)
+mean(Com_E1$Value)
+mean(Com_E2$Value)
+mean(Com_E3$Value)
+mean(Com_E4$Value)
+mean(Com_E5$Value)
+mean(Com_G$Value)
+mean(Com_G1$Value)
+mean(Com_G2$Value)
+mean(Com_G3$Value)
 
+median(Com_E$Value)
+median(Com_E1$Value)
+median(Com_E2$Value)
+median(Com_E3$Value)
+median(Com_E4$Value)
+median(Com_E5$Value)
+median(Com_G$Value)
+median(Com_G1$Value)
+median(Com_G2$Value)
+median(Com_G3$Value)
 
+range(Com_E$Value)
+range(Com_E1$Value)
+range(Com_E2$Value)
+range(Com_E3$Value)
+range(Com_E4$Value)
+range(Com_E5$Value)
+range(Com_G$Value)
+range(Com_G1$Value)
+range(Com_G2$Value)
+range(Com_G3$Value)
 
 library(boot)
 
@@ -3180,14 +3236,158 @@ median_fun <- function(x=NULL, indices) {
   median(x[indices])
 }
 
-bootstrap_results <- boot(Com_G2$Value, statistic = median_fun, R = 1000)
+bootstrap_resultsE <- boot(Com_E$Value, statistic = median_fun, R = 1000)
+print(bootstrap_resultsE)
 
-# Vedere i risultati del bootstrap
-print(bootstrap_results)
+# Standard Error of median (SEM)
+sem_medianE <- sd(bootstrap_resultsE$t)
 
-# Calcolare l'Errore Standard della Mediana (SEM)
-sem_median <- sd(bootstrap_results$t)
-sem_median  
 
-J1 <- as.data.frame(rbind(J_E, J_G))
-wilcox.test1J <- wilcox.test(Value ~ Habitat, data= J1)
+bootstrap_resultsE1 <- boot(Com_E1$Value, statistic = median_fun, R = 1000)
+sem_medianE1 <- sd(bootstrap_resultsE1$t)
+bootstrap_resultsE2 <- boot(Com_E2$Value, statistic = median_fun, R = 1000)
+sem_medianE2 <- sd(bootstrap_resultsE2$t)
+bootstrap_resultsE3 <- boot(Com_E3$Value, statistic = median_fun, R = 1000)
+sem_medianE3 <- sd(bootstrap_resultsE3$t)
+bootstrap_resultsE4 <- boot(Com_E4$Value, statistic = median_fun, R = 1000)
+sem_medianE4 <- sd(bootstrap_resultsE4$t)
+bootstrap_resultsE5 <- boot(Com_E5$Value, statistic = median_fun, R = 1000)
+sem_medianE5 <- sd(bootstrap_resultsE5$t)
+
+bootstrap_resultsG <- boot(Com_G$Value, statistic = median_fun, R = 1000)
+sem_medianG <- sd(bootstrap_resultsG$t)
+bootstrap_resultsG1 <- boot(Com_G1$Value, statistic = median_fun, R = 1000)
+sem_medianG1 <- sd(bootstrap_resultsG1$t)
+bootstrap_resultsG2 <- boot(Com_G2$Value, statistic = median_fun, R = 1000)
+sem_medianG2 <- sd(bootstrap_resultsG2$t)
+bootstrap_resultsG3 <- boot(Com_G3$Value, statistic = median_fun, R = 1000)
+sem_medianG3 <- sd(bootstrap_resultsG3$t)
+
+
+mean(NNI_E$Value)
+mean(NNI_E1$Value)
+mean(NNI_E2$Value)
+mean(NNI_E3$Value)
+mean(NNI_E4$Value)
+mean(NNI_E5$Value)
+mean(NNI_G$Value)
+mean(NNI_G1$Value)
+mean(NNI_G2$Value)
+mean(NNI_G3$Value)
+
+median(NNI_E$Value)
+median(NNI_E1$Value)
+median(NNI_E2$Value)
+median(NNI_E3$Value)
+median(NNI_E4$Value)
+median(NNI_E5$Value)
+median(NNI_G$Value)
+median(NNI_G1$Value)
+median(NNI_G2$Value)
+median(NNI_G3$Value)
+
+range(NNI_E$Value)
+range(NNI_E1$Value)
+range(NNI_E2$Value)
+range(NNI_E3$Value)
+range(NNI_E4$Value)
+range(NNI_E5$Value)
+range(NNI_G$Value)
+range(NNI_G1$Value)
+range(NNI_G2$Value)
+range(NNI_G3$Value)
+
+
+bootstrap_resultsE <- boot(NNI_E$Value, statistic = median_fun, R = 1000)
+print(bootstrap_resultsE)
+
+# Standard Error of median (SEM)
+sem_medianE <- sd(bootstrap_resultsE$t)
+
+
+bootstrap_resultsE1 <- boot(NNI_E1$Value, statistic = median_fun, R = 1000)
+sem_medianE1 <- sd(bootstrap_resultsE1$t)
+bootstrap_resultsE2 <- boot(NNI_E2$Value, statistic = median_fun, R = 1000)
+sem_medianE2 <- sd(bootstrap_resultsE2$t)
+bootstrap_resultsE3 <- boot(NNI_E3$Value, statistic = median_fun, R = 1000)
+sem_medianE3 <- sd(bootstrap_resultsE3$t)
+bootstrap_resultsE4 <- boot(NNI_E4$Value, statistic = median_fun, R = 1000)
+sem_medianE4 <- sd(bootstrap_resultsE4$t)
+bootstrap_resultsE5 <- boot(NNI_E5$Value, statistic = median_fun, R = 1000)
+sem_medianE5 <- sd(bootstrap_resultsE5$t)
+
+bootstrap_resultsG <- boot(NNI_G$Value, statistic = median_fun, R = 1000)
+sem_medianG <- sd(bootstrap_resultsG$t)
+bootstrap_resultsG1 <- boot(NNI_G1$Value, statistic = median_fun, R = 1000)
+sem_medianG1 <- sd(bootstrap_resultsG1$t)
+bootstrap_resultsG2 <- boot(NNI_G2$Value, statistic = median_fun, R = 1000)
+sem_medianG2 <- sd(bootstrap_resultsG2$t)
+bootstrap_resultsG3 <- boot(NNI_G3$Value, statistic = median_fun, R = 1000)
+sem_medianG3 <- sd(bootstrap_resultsG3$t)
+
+
+mean(J_E$Value)
+mean(J_E1$Value)
+mean(J_E2$Value)
+mean(J_E3$Value)
+mean(J_E4$Value)
+mean(J_E5$Value)
+mean(J_G$Value)
+mean(J_G1$Value)
+mean(J_G2$Value)
+mean(J_G3$Value)
+
+median(J_E$Value)
+median(J_E1$Value)
+median(J_E2$Value)
+median(J_E3$Value)
+median(J_E4$Value)
+median(J_E5$Value)
+median(J_G$Value)
+median(J_G1$Value)
+median(J_G2$Value)
+median(J_G3$Value)
+
+range(J_E$Value)
+range(J_E1$Value)
+range(J_E2$Value)
+range(J_E3$Value)
+range(J_E4$Value)
+range(J_E5$Value)
+range(J_G$Value)
+range(J_G1$Value)
+range(J_G2$Value)
+range(J_G3$Value)
+
+
+bootstrap_resultsE <- boot(J_E$Value, statistic = median_fun, R = 1000)
+print(bootstrap_resultsE)
+
+# Standard Error of median (SEM)
+sem_medianE <- sd(bootstrap_resultsE$t)
+
+
+bootstrap_resultsE1 <- boot(J_E1$Value, statistic = median_fun, R = 1000)
+sem_medianE1 <- sd(bootstrap_resultsE1$t)
+bootstrap_resultsE2 <- boot(J_E2$Value, statistic = median_fun, R = 1000)
+sem_medianE2 <- sd(bootstrap_resultsE2$t)
+bootstrap_resultsE3 <- boot(J_E3$Value, statistic = median_fun, R = 1000)
+sem_medianE3 <- sd(bootstrap_resultsE3$t)
+bootstrap_resultsE4 <- boot(J_E4$Value, statistic = median_fun, R = 1000)
+sem_medianE4 <- sd(bootstrap_resultsE4$t)
+bootstrap_resultsE5 <- boot(J_E5$Value, statistic = median_fun, R = 1000)
+sem_medianE5 <- sd(bootstrap_resultsE5$t)
+
+bootstrap_resultsG <- boot(J_G$Value, statistic = median_fun, R = 1000)
+sem_medianG <- sd(bootstrap_resultsG$t)
+bootstrap_resultsG1 <- boot(J_G1$Value, statistic = median_fun, R = 1000)
+sem_medianG1 <- sd(bootstrap_resultsG1$t)
+bootstrap_resultsG2 <- boot(J_G2$Value, statistic = median_fun, R = 1000)
+sem_medianG2 <- sd(bootstrap_resultsG2$t)
+bootstrap_resultsG3 <- boot(J_G3$Value, statistic = median_fun, R = 1000)
+sem_medianG3 <- sd(bootstrap_resultsG3$t)
+
+
+
+
+
