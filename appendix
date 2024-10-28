@@ -1,16 +1,1430 @@
+library(sf) # version ‘1.0.16’
+library(terra) # version ‘1.7.78’
+library(tidyverse) # version ‘2.0.0’
+library(sPlotOpenR)
+
+# download sPlotOpen dataset and load into R
+data <- get_sPlot(load = T) 
+
+DT <- data[["DT"]]
+DT$Species <- gsub(DT$Species, pattern = ' ', replacement = '_')
+
+# Separate data into species and non-species levels
+species_level <- DT[grepl("_", DT$Species),]
+NOspecies_level <- DT[!grepl("_", DT$Species),]
+
+# Merge data
+d <- merge(species_level, data[["header"]], by = 'PlotObservationID')
+
+# Filter for Europe, Year >= 1992, and Location uncertainty < 250
+d <- d[d$Continent=='Europe',]
+d <- d %>% filter(Location_uncertainty < 250)
+
+# Remove ambigous character in EUNIS habitat types
+
+esy <- d%>%filter(!ESY=="?") %>%filter(!ESY=="+") %>% dplyr::select(ESY)%>%distinct()%>%drop_na()
+
+d_esy <- d %>% inner_join(., esy, by="ESY")
+
+# filter only for level2
+
+d_esy$ESY2<- substr(d_esy$ESY, 1, 2)
+d_esy <- d_esy %>% filter(!ESY2=="Y-")
+
+
+# filter only for level1
+
+d_esy$ESY3<- substr(d_esy$ESY2, 1, 1)
+
+# select only habitats included in level 1 E and G
+
+v <- c("G", "E")
+d_esy <- d_esy[d_esy$ESY3 %in% v, ]
+
+
+
+#################### CLC aggregation ########################
+
+##### 0.65 threshold #####
+
+r<-rast("U2018_CLC2012_V2020_20u1.tif")
+
+e <- ext( 1909258, 7088873, 1126797, 6859958)
+r<- crop(r, e)
+
+# Crosswalk subsetting of the classes
+
+yG <- subst(r, c(16, 17, 23, 24, 25, 28),  c(16, 17, 23, 24, 25, 28),others=NA)
+yE <- subst(r, c(11, 10, 18, 26, 27, 28, 29, 30),  c(11, 10, 18, 26, 27, 28, 29, 30),others=NA)
+
+writeRaster(yG, "yG.tif")
+writeRaster(yE, "yE.tif")
+
+# Aggregation condition
+
+freq <- function(x) {
+    if (sum(is.na(x)) >= 0.65 * length(x)) {
+        return(NA)
+    } else {
+        return(median(x, na.rm = TRUE))
+    }
+ }
+
+yGe65_10 <- aggregate(yG, fact=100, fun = freq) 
+
+
+yEe65_10 <- aggregate(yE, fact=100, fun = freq) 
+
+##### 0.85 threshold #####
+
+freq <- function(x) {
+    if (sum(is.na(x)) >= 0.85 * length(x)) {
+        return(NA)
+    } else {
+        return(median(x, na.rm = TRUE))
+    }
+ }
+
+yGe85_10 <- aggregate(yG, fact=100, fun = freq) 
+
+
+yEe85_10 <- aggregate(yE, fact=100, fun = freq) 
+
+#################### dataset 0.65 ########################
+yGe65_10v <- as.polygons(yGe65_10, value=FALSE, dissolve=FALSE)
+yGev.sf <- st_as_sf(yGe65_10v)
+yGev.sf <- st_make_valid(yGev.sf)
+yGev.sf$lyr.1 <- rownames(yGev.sf)
+
+yEe65_10v <- as.polygons(yEe65_10, value=FALSE, dissolve=FALSE)
+yEev.sf <- st_as_sf(yEe65_10v)
+yEev.sf <- st_make_valid(yEev.sf)
+yEev.sf$lyr.1 <- rownames(yEev.sf)
+
+
+
+#################### d G ########################
+
+# spatial points and coordinates change
+
+dcoord_ESY3_G <- d_esy %>%
+  filter(ESY3=="G")%>%
+  dplyr::select(Longitude, Latitude, PlotObservationID)%>%
+  unique()%>%
+  drop_na() %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  st_transform(crs = st_crs(3035)) %>%
+  st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))
+
+# spatial points of plots and grid intersection 
+
+OV <- st_intersects(dcoord_ESY3_G, yGev.sf)
+
+OVG <- purrr::map_depth(OV, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(OVG)
+ 
+
+# dataframe of the plots within each grid cell
+d_idG <- d_esy %>% filter(ESY3=="G")%>%
+  dplyr::select(Longitude, Latitude, PlotObservationID)%>%
+  unique()%>%
+  drop_na() %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  st_transform(crs = st_crs(3035))%>%
+  st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))%>%
+  data.frame(st_coordinates(st_cast(.,"MULTIPOINT")))%>%
+  dplyr::select(-geometry)%>%
+  cbind(., id=OV_l) %>%
+  dplyr::select(id, PlotObservationID) %>%
+  drop_na()
+
+ 
+
+# final dataframe
+d_ESY3_G <- d_esy %>% filter(ESY3=="G")%>% 
+  dplyr::select(Longitude, Latitude, PlotObservationID, Species, Releve_area, Date_of_recording, ESY3, ESY2)%>%
+  unique()%>%
+  drop_na() %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  st_transform(crs = st_crs(3035))%>%
+  st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))%>%
+  data.frame(st_coordinates(st_cast(.,"MULTIPOINT")))%>%
+  dplyr::select(-geometry) %>% left_join(., d_idG, by="PlotObservationID") %>%
+  drop_na()
+
+saveRDS(d_ESY3_G, "d_ESY3_G65.rds")
+
+#################### d E ########################
+dcoord_ESY3_E <- d_esy %>%
+  filter(ESY3=="E")%>%
+  dplyr::select(Longitude, Latitude, PlotObservationID)%>%
+  unique()%>%
+  drop_na() %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  st_transform(crs = st_crs(3035)) %>%
+  st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))
+
+OV <- st_intersects(dcoord_ESY3_E, yEev.sf)
+
+OVE <- purrr::map_depth(OV, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(OVE)
+ 
+
+# dataframe of the plots within each grid cell
+d_idE <- d_esy %>% filter(ESY3=="E")%>%
+  dplyr::select(Longitude, Latitude, PlotObservationID)%>%
+  unique()%>%
+  drop_na() %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  st_transform(crs = st_crs(3035))%>%
+  st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))%>%
+  data.frame(st_coordinates(st_cast(.,"MULTIPOINT")))%>%
+  dplyr::select(-geometry)%>%
+  cbind(., id=OV_l) %>%
+  dplyr::select(id, PlotObservationID) %>%
+  drop_na()
+
+ 
+
+# final dataframe
+d_ESY3_E <- d_esy %>% filter(ESY3=="E")%>% 
+  dplyr::select(Longitude, Latitude, PlotObservationID, Species, Releve_area, Date_of_recording, ESY3, ESY2)%>%
+  unique()%>%
+  drop_na() %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  st_transform(crs = st_crs(3035))%>%
+  st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))%>%
+  data.frame(st_coordinates(st_cast(.,"MULTIPOINT")))%>%
+  dplyr::select(-geometry) %>% left_join(., d_idE, by="PlotObservationID") %>%
+  drop_na()
+
+saveRDS(d_ESY3_E, "d_ESY3_E65.rds")
+
+
+
+#################### dataset 0.85 ########################
+yGe85_10v <- as.polygons(yGe85_10, value=FALSE, dissolve=FALSE)
+yGev.sf <- st_as_sf(yG865_10v)
+yGev.sf <- st_make_valid(yGev.sf)
+yGev.sf$lyr.1 <- rownames(yGev.sf)
+
+yEe85_10v <- as.polygons(yEe85_10, value=FALSE, dissolve=FALSE)
+yEev.sf <- st_as_sf(yEe85_10v)
+yEev.sf <- st_make_valid(yEev.sf)
+yEev.sf$lyr.1 <- rownames(yEev.sf)
+
+
+
+#################### d G ########################
+
+# spatial points and coordinates change
+
+dcoord_ESY3_G <- d_esy %>%
+  filter(ESY3=="G")%>%
+  dplyr::select(Longitude, Latitude, PlotObservationID)%>%
+  unique()%>%
+  drop_na() %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  st_transform(crs = st_crs(3035)) %>%
+  st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))
+
+# spatial points of plots and grid intersection 
+
+OV <- st_intersects(dcoord_ESY3_G, yGev.sf)
+
+OVG <- purrr::map_depth(OV, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(OVG)
+ 
+
+# dataframe of the plots within each grid cell
+d_idG <- d_esy %>% filter(ESY3=="G")%>%
+  dplyr::select(Longitude, Latitude, PlotObservationID)%>%
+  unique()%>%
+  drop_na() %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  st_transform(crs = st_crs(3035))%>%
+  st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))%>%
+  data.frame(st_coordinates(st_cast(.,"MULTIPOINT")))%>%
+  dplyr::select(-geometry)%>%
+  cbind(., id=OV_l) %>%
+  dplyr::select(id, PlotObservationID) %>%
+  drop_na()
+
+ 
+
+# final dataframe
+d_ESY3_G <- d_esy %>% filter(ESY3=="G")%>% 
+  dplyr::select(Longitude, Latitude, PlotObservationID, Species, Releve_area, Date_of_recording, ESY3, ESY2)%>%
+  unique()%>%
+  drop_na() %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  st_transform(crs = st_crs(3035))%>%
+  st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))%>%
+  data.frame(st_coordinates(st_cast(.,"MULTIPOINT")))%>%
+  dplyr::select(-geometry) %>% left_join(., d_idG, by="PlotObservationID") %>%
+  drop_na()
+
+saveRDS(d_ESY3_G, "d_ESY3_G85.rds")
+
+#################### d E ########################
+dcoord_ESY3_E <- d_esy %>%
+  filter(ESY3=="E")%>%
+  dplyr::select(Longitude, Latitude, PlotObservationID)%>%
+  unique()%>%
+  drop_na() %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  st_transform(crs = st_crs(3035)) %>%
+  st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))
+
+OV <- st_intersects(dcoord_ESY3_E, yEev.sf)
+
+OVE <- purrr::map_depth(OV, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(OVE)
+ 
+
+# dataframe of the plots within each grid cell
+d_idE <- d_esy %>% filter(ESY3=="E")%>%
+  dplyr::select(Longitude, Latitude, PlotObservationID)%>%
+  unique()%>%
+  drop_na() %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  st_transform(crs = st_crs(3035))%>%
+  st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))%>%
+  data.frame(st_coordinates(st_cast(.,"MULTIPOINT")))%>%
+  dplyr::select(-geometry)%>%
+  cbind(., id=OV_l) %>%
+  dplyr::select(id, PlotObservationID) %>%
+  drop_na()
+
+ 
+
+# final dataframe
+d_ESY3_E <- d_esy %>% filter(ESY3=="E")%>% 
+  dplyr::select(Longitude, Latitude, PlotObservationID, Species, Releve_area, Date_of_recording, ESY3, ESY2)%>%
+  unique()%>%
+  drop_na() %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = st_crs("+proj=longlat +datum=WGS84")) %>%
+  st_transform(crs = st_crs(3035))%>%
+  st_crop(., c(xmin = 1909300, ymin = 1120000, xmax = 7089300  , ymax =5500000))%>%
+  data.frame(st_coordinates(st_cast(.,"MULTIPOINT")))%>%
+  dplyr::select(-geometry) %>% left_join(., d_idE, by="PlotObservationID") %>%
+  drop_na()
+
+saveRDS(d_ESY3_E, "d_ESY3_E85.rds")
+
+
+########################## Taxonomic Bias 0.65 ##############################
+
+library(iNEXT) #version ‘3.0.1’
+
+
+d_ESY3_E65 <- readRDS("d_ESY3_E65.rds")
+
+# add incidence presence value for each species
+
+d_ESY3_E65$records <- 1
+
+d_ESY3_G65 <- readRDS("d_ESY3_G65.rds")
+
+d_ESY3_G65$records <- 1
+
+# community matrix IDplots x species
+d_ESY3_E <- d_ESY3_E65 %>%
+  filter(ESY3=="E")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY3_G <- d_ESY3_G65 %>%
+  filter(ESY3=="G")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+matrix_next <- function(x)
+  {
+  m <- pivot_wider(x, names_from =Species, values_from = records, id_cols=PlotObservationID, values_fill = 0) %>% unique()
+  return(m)
+}
+
+# LEVEL 1 E
+mdE <- map(d_ESY3_E$data, ~ matrix_next(.x))
+
+# to remove grid cells with only 1 or 2 plots
+
+single_row_indices <- sapply(mdE, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY3_E %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE <- map(d_matrix$data, ~ matrix_next(.x))
+
+# function to create the indicence frequence of the species
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE <- map(mdE, ~ list_next(.x))
+
+# apply iNEXT function to calculate the Completeness of species richness
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE_sr <- map(ldE, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+# select completeness
+
+ldE_sc <- map(ldE_sr, ~ df_sc(.x)) 
+ldE_sc <- as.data.frame(unlist(ldE_sc))
+ldE_sc <- ldE_sc %>% rename(SC=`unlist(ldE_sc)`)
+
+ldE_sc <- ldE_sc %>% cbind(id=d_matrix$id)
+saveRDS(ldE_sc, "ldE_sc.rds")
+
+# LEVEL 1 G
+mdG <- map(d_ESY3_G$data, ~ matrix_next(.x))
+
+single_row_indices <- sapply(mdG, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY3_G %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdG <- map(d_matrix$data, ~ matrix_next(.x))
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldG <- map(mdG, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldG_sr <- map(ldG, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldG_sc <- map(ldG_sr, ~ df_sc(.x)) 
+ldG_sc <- as.data.frame(unlist(ldG_sc))
+ldG_sc <- ldG_sc %>% rename(SC=`unlist(ldG_sc)`)
+
+ldG_sc <- ldG_sc %>% cbind(id=d_matrix$id)
+saveRDS(ldG_sc, "ldG_sc.rds")
+
+## level 2 ###
+
+d_ESY2_E1 <- d_ESY3_E65 %>%
+  filter(ESY2=="E1")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_E2 <- d_ESY3_E65 %>%
+  filter(ESY2=="E2")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_E3 <- d_ESY3_E65 %>%
+  filter(ESY2=="E3")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_E4 <- d_ESY3_E65 %>%
+  filter(ESY2=="E4")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+
+d_ESY2_E5 <- d_ESY3_E65 %>%
+  filter(ESY2=="E5")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+
+d_ESY2_G1 <- d_ESY3_G65 %>%
+  filter(ESY2=="G1")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_G2 <- d_ESY3_G65 %>%
+  filter(ESY2=="G2")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_G3 <- d_ESY3_G65 %>%
+  filter(ESY2=="G3")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+
+
+mdE1 <- map(d_ESY2_E1$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdE1, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E1 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE1 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE1 <- map(mdE1, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE1_sr <- map(ldE1, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+ldE1_sc <- map(ldE1_sr, ~ df_sc(.x)) 
+ldE1_sc <- as.data.frame(unlist(ldE1_sc))
+ldE1_sc <- ldE1_sc %>% rename(SC=`unlist(ldE1_sc)`)
+
+ldE1_sc <- ldE1_sc %>% cbind(id=d_matrix$id)
+
+
+mdE2 <- map(d_ESY2_E2$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdE2, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E2 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE2 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE2 <- map(mdE2, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE2_sr <- map(ldE2, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+ldE2_sc <- map(ldE2_sr, ~ df_sc(.x)) 
+ldE2_sc <- as.data.frame(unlist(ldE2_sc))
+ldE2_sc <- ldE2_sc %>% rename(SC=`unlist(ldE2_sc)`)
+ldE2_sc <- ldE2_sc %>% cbind(id=d_matrix$id)
+
+mdE3 <- map(d_ESY2_E3$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdE3, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E3 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE3 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE3 <- map(mdE3, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE3_sr <- map(ldE3, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldE3_sc <- map(ldE3_sr, ~ df_sc(.x)) 
+ldE3_sc <- as.data.frame(unlist(ldE3_sc))
+ldE3_sc <- ldE3_sc %>% rename(SC=`unlist(ldE3_sc)`)
+ldE3_sc <- ldE3_sc %>% cbind(id=d_matrix$id)
+
+mdE4 <- map(d_ESY2_E4$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdE4, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E4 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE4 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE4 <- map(mdE4, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE4_sr <- map(ldE4, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldE4_sc <- map(ldE4_sr, ~ df_sc(.x)) 
+ldE4_sc <- as.data.frame(unlist(ldE4_sc))
+ldE4_sc <- ldE4_sc %>% rename(SC=`unlist(ldE4_sc)`)
+ldE4_sc <- ldE4_sc %>% cbind(id=d_matrix$id)
+
+mdE5 <- map(d_ESY2_E5$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdE5, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E5 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE5 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE5 <- map(mdE5, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE5_sr <- map(ldE5, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldE5_sc <- map(ldE5_sr, ~ df_sc(.x)) 
+ldE5_sc <- as.data.frame(unlist(ldE5_sc))
+ldE5_sc <- ldE5_sc %>% rename(SC=`unlist(ldE5_sc)`)
+ldE5_sc <- ldE5_sc %>% cbind(id=d_matrix$id)
+
+
+saveRDS(ldE1_sc, "ldE1_sc.rds")
+saveRDS(ldE2_sc, "ldE2_sc.rds")
+saveRDS(ldE3_sc, "ldE3_sc.rds")
+saveRDS(ldE4_sc, "ldE4_sc.rds")
+saveRDS(ldE5_sc, "ldE5_sc.rds")
+
+
+
+mdG1 <- map(d_ESY2_G1$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdG1, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_G1 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdG1 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldG1 <- map(mdG1, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldG1_sr <- map(ldG1, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldG1_sc <- map(ldG1_sr, ~ df_sc(.x)) 
+ldG1_sc <- as.data.frame(unlist(ldG1_sc))
+ldG1_sc <- ldG1_sc %>% rename(SC=`unlist(ldG1_sc)`)
+ldG1_sc <- ldG1_sc %>% cbind(id=d_matrix$id)
+
+mdG2 <- map(d_ESY2_G2$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdG2, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_G2 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdG2 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldG2 <- map(mdG2, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldG2_sr <- map(ldG2, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldG2_sc <- map(ldG2_sr, ~ df_sc(.x)) 
+ldG2_sc <- as.data.frame(unlist(ldG2_sc))
+ldG2_sc <- ldG2_sc %>% rename(SC=`unlist(ldG2_sc)`)
+ldG2_sc <- ldG2_sc %>% cbind(id=d_matrix$id)
+
+
+mdG3 <- map(d_ESY2_G3$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdG3, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_G3 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdG3 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldG3 <- map(mdG3, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldG3_sr <- map(ldG3, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldG3_sc <- map(ldG3_sr, ~ df_sc(.x)) 
+ldG3_sc <- as.data.frame(unlist(ldG3_sc))
+ldG3_sc <- ldG3_sc %>% rename(SC=`unlist(ldG3_sc)`)
+ldG3_sc <- ldG3_sc %>% cbind(id=d_matrix$id)
+
+saveRDS(ldG1_sc, "ldG1_sc.rds")
+saveRDS(ldG2_sc, "ldG2_sc.rds")
+saveRDS(ldG3_sc, "ldG3_sc.rds")
+
+
+###################### Taxonomic Bias 0.85 ##################
+
+d_ESY3_E85 <- readRDS("d_ESY3_E85.rds")
+
+# add incidence presence value for each species
+
+d_ESY3_E85$records <- 1
+
+d_ESY3_G85 <- readRDS("d_ESY3_G85.rds")
+
+d_ESY3_G85$records <- 1
+
+# community matrix IDplots x species
+d_ESY3_E <- d_ESY3_E85 %>%
+  filter(ESY3=="E")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY3_G <- d_ESY3_G85 %>%
+  filter(ESY3=="G")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+matrix_next <- function(x)
+  {
+  m <- pivot_wider(x, names_from =Species, values_from = records, id_cols=PlotObservationID, values_fill = 0) %>% unique()
+  return(m)
+}
+
+# LEVEL 1 E
+mdE <- map(d_ESY3_E$data, ~ matrix_next(.x))
+
+# to remove grid cells with only 1 or 2 plots
+
+single_row_indices <- sapply(mdE, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY3_E %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE <- map(d_matrix$data, ~ matrix_next(.x))
+
+# function to create the indicence frequence of the species
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE <- map(mdE, ~ list_next(.x))
+
+# apply iNEXT function to calculate the Completeness of species richness
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE_sr <- map(ldE, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+# select completeness
+
+ldE_sc <- map(ldE_sr, ~ df_sc(.x)) 
+ldE_sc <- as.data.frame(unlist(ldE_sc))
+ldE_sc <- ldE_sc %>% rename(SC=`unlist(ldE_sc)`)
+
+ldE_sc <- ldE_sc %>% cbind(id=d_matrix$id)
+saveRDS(ldE_sc, "ldE_sc.rds")
+
+# LEVEL 1 G
+mdG <- map(d_ESY3_G$data, ~ matrix_next(.x))
+
+single_row_indices <- sapply(mdG, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY3_G %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdG <- map(d_matrix$data, ~ matrix_next(.x))
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldG <- map(mdG, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldG_sr <- map(ldG, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldG_sc <- map(ldG_sr, ~ df_sc(.x)) 
+ldG_sc <- as.data.frame(unlist(ldG_sc))
+ldG_sc <- ldG_sc %>% rename(SC=`unlist(ldG_sc)`)
+
+ldG_sc <- ldG_sc %>% cbind(id=d_matrix$id)
+saveRDS(ldG_sc, "ldG_sc.rds")
+
+## level 2 ###
+
+d_ESY2_E1 <- d_ESY3_E85 %>%
+  filter(ESY2=="E1")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_E2 <- d_ESY3_E85 %>%
+  filter(ESY2=="E2")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_E3 <- d_ESY3_E85 %>%
+  filter(ESY2=="E3")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_E4 <- d_ESY3_E85 %>%
+  filter(ESY2=="E4")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+
+d_ESY2_E5 <- d_ESY3_E85 %>%
+  filter(ESY2=="E5")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+
+d_ESY2_G1 <- d_ESY3_G85 %>%
+  filter(ESY2=="G1")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_G2 <- d_ESY3_G85 %>%
+  filter(ESY2=="G2")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+d_ESY2_G3 <- d_ESY3_G85 %>%
+  filter(ESY2=="G3")%>%
+  dplyr::select(Species, PlotObservationID, records, id)%>%
+  drop_na()%>%
+  unique()%>%
+  group_by(id)%>%
+  nest()
+
+
+
+mdE1 <- map(d_ESY2_E1$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdE1, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E1 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE1 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE1 <- map(mdE1, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE1_sr <- map(ldE1, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+ldE1_sc <- map(ldE1_sr, ~ df_sc(.x)) 
+ldE1_sc <- as.data.frame(unlist(ldE1_sc))
+ldE1_sc <- ldE1_sc %>% rename(SC=`unlist(ldE1_sc)`)
+
+ldE1_sc <- ldE1_sc %>% cbind(id=d_matrix$id)
+
+
+mdE2 <- map(d_ESY2_E2$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdE2, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E2 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE2 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE2 <- map(mdE2, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE2_sr <- map(ldE2, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+ldE2_sc <- map(ldE2_sr, ~ df_sc(.x)) 
+ldE2_sc <- as.data.frame(unlist(ldE2_sc))
+ldE2_sc <- ldE2_sc %>% rename(SC=`unlist(ldE2_sc)`)
+ldE2_sc <- ldE2_sc %>% cbind(id=d_matrix$id)
+
+mdE3 <- map(d_ESY2_E3$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdE3, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E3 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE3 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE3 <- map(mdE3, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE3_sr <- map(ldE3, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldE3_sc <- map(ldE3_sr, ~ df_sc(.x)) 
+ldE3_sc <- as.data.frame(unlist(ldE3_sc))
+ldE3_sc <- ldE3_sc %>% rename(SC=`unlist(ldE3_sc)`)
+ldE3_sc <- ldE3_sc %>% cbind(id=d_matrix$id)
+
+mdE4 <- map(d_ESY2_E4$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdE4, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E4 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE4 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE4 <- map(mdE4, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE4_sr <- map(ldE4, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldE4_sc <- map(ldE4_sr, ~ df_sc(.x)) 
+ldE4_sc <- as.data.frame(unlist(ldE4_sc))
+ldE4_sc <- ldE4_sc %>% rename(SC=`unlist(ldE4_sc)`)
+ldE4_sc <- ldE4_sc %>% cbind(id=d_matrix$id)
+
+mdE5 <- map(d_ESY2_E5$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdE5, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_E5 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdE5 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldE5 <- map(mdE5, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldE5_sr <- map(ldE5, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldE5_sc <- map(ldE5_sr, ~ df_sc(.x)) 
+ldE5_sc <- as.data.frame(unlist(ldE5_sc))
+ldE5_sc <- ldE5_sc %>% rename(SC=`unlist(ldE5_sc)`)
+ldE5_sc <- ldE5_sc %>% cbind(id=d_matrix$id)
+
+
+saveRDS(ldE1_sc, "ldE1_sc.rds")
+saveRDS(ldE2_sc, "ldE2_sc.rds")
+saveRDS(ldE3_sc, "ldE3_sc.rds")
+saveRDS(ldE4_sc, "ldE4_sc.rds")
+saveRDS(ldE5_sc, "ldE5_sc.rds")
+
+
+
+mdG1 <- map(d_ESY2_G1$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdG1, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_G1 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdG1 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldG1 <- map(mdG1, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldG1_sr <- map(ldG1, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldG1_sc <- map(ldG1_sr, ~ df_sc(.x)) 
+ldG1_sc <- as.data.frame(unlist(ldG1_sc))
+ldG1_sc <- ldG1_sc %>% rename(SC=`unlist(ldG1_sc)`)
+ldG1_sc <- ldG1_sc %>% cbind(id=d_matrix$id)
+
+mdG2 <- map(d_ESY2_G2$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdG2, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_G2 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdG2 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldG2 <- map(mdG2, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldG2_sr <- map(ldG2, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldG2_sc <- map(ldG2_sr, ~ df_sc(.x)) 
+ldG2_sc <- as.data.frame(unlist(ldG2_sc))
+ldG2_sc <- ldG2_sc %>% rename(SC=`unlist(ldG2_sc)`)
+ldG2_sc <- ldG2_sc %>% cbind(id=d_matrix$id)
+
+
+mdG3 <- map(d_ESY2_G3$data, ~ matrix_next(.x))
+
+
+single_row_indices <- sapply(mdG3, function(df) nrow(df) %in% c(1, 2))
+
+d_matrix <- d_ESY2_G3 %>% cbind(na = single_row_indices) %>% filter(!na=="TRUE") %>% dplyr::select(-na) 
+mdG3 <- map(d_matrix$data, ~ matrix_next(.x))
+
+
+list_next <- function(x)
+{
+  names(x) <- NULL
+  l <- colSums(x[, 2:ncol(x)])
+ l <- c(nrow(x), l)
+  return(l)
+}
+
+ldG3 <- map(mdG3, ~ list_next(.x))
+
+inext <- function(x)
+{
+  ld_sr <- iNEXT(x, q=0, datatype="incidence_freq", knots = 5)
+  return( ld_sr)
+}
+
+
+ldG3_sr <- map(ldG3, ~ inext(.x))
+
+df_sc <- function(x)
+{
+  ld_sc <- data.frame(SC1=x$DataInfo$SC)
+  return( ld_sc)
+}
+
+
+ldG3_sc <- map(ldG3_sr, ~ df_sc(.x)) 
+ldG3_sc <- as.data.frame(unlist(ldG3_sc))
+ldG3_sc <- ldG3_sc %>% rename(SC=`unlist(ldG3_sc)`)
+ldG3_sc <- ldG3_sc %>% cbind(id=d_matrix$id)
+
+saveRDS(ldG1_sc, "ldG1_sc.rds")
+saveRDS(ldG2_sc, "ldG2_sc.rds")
+saveRDS(ldG3_sc, "ldG3_sc.rds")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 p <- tot %>% 
   mutate(across(Bias, factor, levels = c("Taxonomic", "Spatial", "Temporal"))) %>%
   ggplot(aes(x = Habitat, y = Value, fill = Bias)) + 
   stat_summary(
-    aes(group = Bias, color = Bias),  # Gruppo per Bias, e colore in base a Bias
-    fun.min = ~min(.x),  # Funzione minimo
-    fun.max = ~max(.x),  # Funzione massimo
-    fun = median,        # Mediana
-    geom = "pointrange",  # Visualizza le barre (min e max) con il punto centrale (mediana)
-    position = position_dodge(width = 0.3)  # Evita sovrapposizione tra i gruppi
+    aes(group = Bias, color = Bias),  
+    fun.min = ~min(.x), 
+    fun.max = ~max(.x), 
+    fun = median,       
+    geom = "pointrange", 
+    position = position_dodge(width = 0.3) 
   ) +
-  scale_fill_manual(values = c("#3399FF","#FF6600", "#006600")) +  # Colori di riempimento
-  scale_color_manual(values = c("#3399FF","#FF6600", "#006600")) + # Colori delle barre
+  scale_fill_manual(values = c("#3399FF","#FF6600", "#006600")) +  
+  scale_color_manual(values = c("#3399FF","#FF6600", "#006600")) + 
   theme_light() + 
   theme(
     axis.title.x = element_text(size = 14, face = 'bold'),
