@@ -1384,21 +1384,1140 @@ saveRDS(ldG2_sc, "ldG2_sc.rds")
 saveRDS(ldG3_sc, "ldG3_sc.rds")
 
 
+################# Spatial Bias 0.65 #################
+
+library(spatstat) #version ‘3.0.8’
+library(spatstat.explore) #version ‘3.2.7’
+
+d_ESY3_E65 <- readRDS("d_ESY3_E65.rds")
+d_ESY3_G65 <- readRDS("d_ESY3_G65.rds")
+
+yGe65_10 <- rast("yGe65_10.tif")
+
+yGe65_10v <- as.polygons(yGe65_10, value=FALSE, dissolve=FALSE)
+yGev.sf <- st_as_sf(yGe65_10v)
+yGev.sf <- st_make_valid(yGev.sf)
+yGev.sf$lyr.1 <- rownames(yGev.sf)
+
+yEe65_10 <- rast("yEe65_10.tif")
+
+
+yEe65_10v <- as.polygons(yEe65_10, value=FALSE, dissolve=FALSE)
+yEev.sf <- st_as_sf(yEe65_10v)
+yEev.sf <- st_make_valid(yEev.sf)
+yEev.sf$lyr.1 <- rownames(yEev.sf)
+
+
+d_ESY3_Es <- d_ESY3_E65 %>%
+    filter(ESY3=="E")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+
+d_ESY3_Gs <- d_ESY3_G65 %>%
+    filter(ESY3=="G")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+idE <- d_ESY3_E65 %>% dplyr::select(id)%>% drop_na()
+
+# intersection of grids and plots: identify only grids that include plots
+
+spE <- st_intersects(yEev.sf, d_ESY3_Es)
+resE <- purrr::map_depth(spE, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resE)
+
+# transformation of grid cells in bbox
+
+d_ESY3_E_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY3_E_ov$geometry, st_bbox) 
+# Convert the list of bboxes to a data frame
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY3_E_ov$lyr.1))
+
+# nesting data by IDs
+
+d_ESY3_E <- d_ESY3_E65 %>%
+    filter(ESY3=="E")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+
+yE <- list()
+for (i in 1:198) {
+  ppp_obj <- ppp(d_ESY3_E$data[[i]]$X, d_ESY3_E$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yE[[i]] <- ppp_obj
+}
+
+# NNI calculation 
+
+testE <- map(yE, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+saveRDS(testE, "testE.rds")
+
+# extract from the output large list the nni values
+
+extracted_values.nni <- list()
+for (i in 1:length(testE)) {
+  extracted_values.nni[[i]] <- testE[[i]][["statistic"]][["R"]]
+}
+combined_values.nniE <- unlist(extracted_values.nni)
+nni <- combined_values.nniE
+
+nniE <- as.data.frame(nni) %>% cbind(id = d_ESY3_E$id)
+saveRDS(nniE, "nniE.rds")
+
+idG <- d_ESY3_G65%>% dplyr::select(id)%>% drop_na()
+
+
+spG <- st_intersects(yGev.sf, d_ESY3_Gs)
+resG <- purrr::map_depth(spG, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resG)
+
+
+d_ESY3_G_ov <- cbind(yGev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY3_G_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY3_G_ov$lyr.1))
+
+d_ESY3_G <- d_ESY3_G65 %>%
+    filter(ESY3=="G")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yG <- list()
+for (i in 1:801) {
+  ppp_obj <- ppp(d_ESY3_G$data[[i]]$X, d_ESY3_G$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yG[[i]] <- ppp_obj
+}
+
+testG <- map(yG, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+saveRDS(testG, "testG.rds")
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testG)) {
+  extracted_values.nni[[i]] <- testG[[i]][["statistic"]][["R"]]
+}
+combined_values.nniG <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniG
+
+nniG <- as.data.frame(nni) %>% cbind(id = d_ESY3_G$id)
+saveRDS(nniG, "nniG.rds")
+
+
+d_ESY2_G1s <- d_ESY3_G65 %>%
+    filter(ESY2=="G1")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+d_ESY2_G2s <- d_ESY3_G65 %>%
+    filter(ESY2=="G2")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+d_ESY2_G3s <- d_ESY3_G65 %>%
+    filter(ESY2=="G3")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+spG1 <- st_intersects(yGev.sf, d_ESY2_G1s)
+resG1 <- purrr::map_depth(spG1, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resG1)
+
+
+d_ESY2_G1_ov <- cbind(yGev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_G1_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_G1_ov$lyr.1))
+
+d_ESY2_G1 <- d_ESY3_G65 %>%
+    filter(ESY2=="G1")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yG1 <- list()
+for (i in 1:516) {
+  ppp_obj <- ppp(d_ESY2_G1$data[[i]]$X, d_ESY2_G1$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yG1[[i]] <- ppp_obj
+}
+
+testG1 <- map(yG1, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
 
 
 
+extracted_values.nni <- list()
+for (i in 1:length(testG1)) {
+  extracted_values.nni[[i]] <- testG1[[i]][["statistic"]][["R"]]
+}
+combined_values.nniG1 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniG1
+
+nniG1 <- as.data.frame(nni) %>% cbind(id = d_ESY2_G1$id)
+saveRDS(nniG1, "nniG1.rds")
+
+
+spG2 <- st_intersects(yGev.sf, d_ESY2_G2s)
+resG2 <- purrr::map_depth(spG2, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resG2)
+
+
+d_ESY2_G2_ov <- cbind(yGev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_G2_ov$geometry, st_bbox) 
+
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_G2_ov$lyr.1))
+
+d_ESY2_G2 <- d_ESY3_G65 %>%
+    filter(ESY2=="G2")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+
+yG2 <- list()
+for (i in 1:57) {
+  ppp_obj <- ppp(d_ESY2_G2$data[[i]]$X, d_ESY2_G2$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yG2[[i]] <- ppp_obj
+}
+
+testG2 <- map(yG2, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testG2)) {
+  extracted_values.nni[[i]] <- testG2[[i]][["statistic"]][["R"]]
+}
+combined_values.nniG2 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniG2
+
+nniG2 <- as.data.frame(nni) %>% cbind(id = d_ESY2_G2$id)
+saveRDS(nniG2, "nniG2.rds")
+
+spG3 <- st_intersects(yGev.sf, d_ESY2_G3s)
+resG3 <- purrr::map_depth(spG3, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resG3)
+
+
+d_ESY2_G3_ov <- cbind(yGev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_G3_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_G3_ov$lyr.1))
+
+d_ESY2_G3 <- d_ESY3_G65 %>%
+    filter(ESY2=="G3")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yG3 <- list()
+for (i in 1:352) {
+  ppp_obj <- ppp(d_ESY2_G3$data[[i]]$X, d_ESY2_G3$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yG3[[i]] <- ppp_obj
+}
+
+testG3 <- map(yG3, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
 
 
 
+extracted_values.nni <- list()
+for (i in 1:length(testG3)) {
+  extracted_values.nni[[i]] <- testG3[[i]][["statistic"]][["R"]]
+}
+combined_values.nniG3 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniG3
+
+nniG3 <- as.data.frame(nni) %>% cbind(id = d_ESY2_G3$id)
+saveRDS(nniG3, "nniG3.rds")
+
+
+#LEVEL 2 E
+
+d_ESY2_E1s <- d_ESY3_E65 %>%
+    filter(ESY2=="E1")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+d_ESY2_E2s <- d_ESY3_E65 %>%
+    filter(ESY2=="E2")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+d_ESY2_E3s <- d_ESY3_E65 %>%
+    filter(ESY2=="E3")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+d_ESY2_E4s <- d_ESY3_E65 %>%
+    filter(ESY2=="E4")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+
+d_ESY2_E5s <- d_ESY3_E65 %>%
+    filter(ESY2=="E5")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+spE1 <- st_intersects(yEev.sf, d_ESY2_E1s)
+resE1 <- purrr::map_depth(spE1, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resE1)
+
+
+d_ESY2_E1_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_E1_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E1_ov$lyr.1))
+
+d_ESY2_E1 <- d_ESY3_E65 %>%
+    filter(ESY2=="E1")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yE1 <- list()
+for (i in 1:48) {
+  ppp_obj <- ppp(d_ESY2_E1$data[[i]]$X, d_ESY2_E1$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yE1[[i]] <- ppp_obj
+}
+
+testE1 <- map(yE1, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testE1)) {
+  extracted_values.nni[[i]] <- testE1[[i]][["statistic"]][["R"]]
+}
+combined_values.nniE1 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniE1
+
+nniE1 <- as.data.frame(nni) %>% cbind(id = d_ESY2_E1$id)
+saveRDS(nniE1, "nniE1.rds")
+
+spE2 <- st_intersects(yEev.sf, d_ESY2_E2s)
+resE2 <- purrr::map_depth(spE2, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resE2)
+
+
+d_ESY2_E2_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_E2_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E2_ov$lyr.1))
+
+d_ESY2_E2 <- d_ESY3_E65 %>%
+    filter(ESY2=="E2")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yE2 <- list()
+for (i in 1:101) {
+    ppp_obj <- ppp(d_ESY2_E2$data[[i]]$X, d_ESY2_E2$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+    )
+    yE2[[i]] <- ppp_obj
+}
+
+testE2 <- map(yE2, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testE2)) {
+    extracted_values.nni[[i]] <- testE2[[i]][["statistic"]][["R"]]
+}
+combined_values.nniE2 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniE2
+
+nniE2 <- as.data.frame(nni) %>% cbind(id = d_ESY2_E2$id)
+saveRDS(nniE2, "nniE2.rds")
+
+spE3 <- st_intersects(yEev.sf, d_ESY2_E3s)
+resE3 <- purrr::map_depth(spE3, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resE3)
+
+
+d_ESY2_E3_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_E3_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E3_ov$lyr.1))
+
+d_ESY2_E3 <- d_ESY3_E65 %>%
+    filter(ESY2=="E3")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+yE3 <- list()
+for (i in 1:60) {
+    ppp_obj <- ppp(d_ESY2_E3$data[[i]]$X, d_ESY2_E3$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+    )
+    yE3[[i]] <- ppp_obj
+}
+
+testE3 <- map(yE3, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testE3)) {
+    extracted_values.nni[[i]] <- testE3[[i]][["statistic"]][["R"]]
+}
+combined_values.nniE3 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniE3
+
+nniE3 <- as.data.frame(nni) %>% cbind(id = d_ESY2_E3$id)
+saveRDS(nniE3, "nniE3.rds")
+
+spE4 <- st_intersects(yEev.sf, d_ESY2_E4s)
+resE4 <- purrr::map_depth(spE4, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resE4)
+
+
+d_ESY2_E4_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_E4_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E4_ov$lyr.1))
+
+d_ESY2_E4 <- d_ESY3_E65 %>%
+    filter(ESY2=="E4")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yE4 <- list()
+for (i in 1:18) {
+  ppp_obj <- ppp(d_ESY2_E4$data[[i]]$X, d_ESY2_E4$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yE4[[i]] <- ppp_obj
+}
+
+testE4 <- map(yE4, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testE4)) {
+  extracted_values.nni[[i]] <- testE4[[i]][["statistic"]][["R"]]
+}
+combined_values.nniE4 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniE4
+
+nniE4 <- as.data.frame(nni) %>% cbind(id = d_ESY2_E4$id)
+saveRDS(nniE4, "nniE4.rds")
+
+spE5 <- st_intersects(yEev.sf, d_ESY2_E5s)
+resE5 <- purrr::map_depth(spE5, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resE5)
+
+
+d_ESY2_E5_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_E5_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E5_ov$lyr.1))
+
+d_ESY2_E5 <- d_ESY3_E65 %>%
+    filter(ESY2=="E5")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yE5 <- list()
+for (i in 1:26) {
+  ppp_obj <- ppp(d_ESY2_E5$data[[i]]$X, d_ESY2_E5$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yE5[[i]] <- ppp_obj
+}
+
+testE5 <- map(yE5, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testE5)) {
+  extracted_values.nni[[i]] <- testE5[[i]][["statistic"]][["R"]]
+}
+combined_values.nniE5 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniE5
+
+nniE5 <- as.data.frame(nni) %>% cbind(id = d_ESY2_E5$id)
+saveRDS(nniE5, "nniE5.rds")
+
+
+###################### Spatial Bias 0.85 #####################
+
+
+d_ESY3_E85 <- readRDS("d_ESY3_E85.rds")
+d_ESY3_G85 <- readRDS("d_ESY3_G85.rds")
+
+yGe85_10 <- rast("yGe85_10.tif")
+
+yGe85_10v <- as.polygons(yGe85_10, value=FALSE, dissolve=FALSE)
+yGev.sf <- st_as_sf(yGe85_10v)
+yGev.sf <- st_make_valid(yGev.sf)
+yGev.sf$lyr.1 <- rownames(yGev.sf)
+
+yEe85_10 <- rast("yEe85_10.tif")
+
+
+yEe85_10v <- as.polygons(yEe85_10, value=FALSE, dissolve=FALSE)
+yEev.sf <- st_as_sf(yEe85_10v)
+yEev.sf <- st_make_valid(yEev.sf)
+yEev.sf$lyr.1 <- rownames(yEev.sf)
+
+
+d_ESY3_Es <- d_ESY3_E85 %>%
+    filter(ESY3=="E")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+
+d_ESY3_Gs <- d_ESY3_G85 %>%
+    filter(ESY3=="G")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+idE <- d_ESY3_E85 %>% dplyr::select(id)%>% drop_na()
+
+# intersection of grids and plots: identify only grids that include plots
+
+spE <- st_intersects(yEev.sf, d_ESY3_Es)
+resE <- purrr::map_depth(spE, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resE)
+
+# transformation of grid cells in bbox
+
+d_ESY3_E_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY3_E_ov$geometry, st_bbox) 
+# Convert the list of bboxes to a data frame
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY3_E_ov$lyr.1))
+
+# nesting data by IDs
+
+d_ESY3_E <- d_ESY3_E85 %>%
+    filter(ESY3=="E")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+
+yE <- list()
+for (i in 1:607) {
+  ppp_obj <- ppp(d_ESY3_E$data[[i]]$X, d_ESY3_E$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yE[[i]] <- ppp_obj
+}
+
+# NNI calculation 
+
+testE <- map(yE, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+saveRDS(testE, "testE.rds")
+
+# extract from the output large list the nni values
+
+extracted_values.nni <- list()
+for (i in 1:length(testE)) {
+  extracted_values.nni[[i]] <- testE[[i]][["statistic"]][["R"]]
+}
+combined_values.nniE <- unlist(extracted_values.nni)
+nni <- combined_values.nniE
+
+nniE <- as.data.frame(nni) %>% cbind(id = d_ESY3_E$id)
+saveRDS(nniE, "nniE.rds")
+
+idG <- d_ESY3_G85%>% dplyr::select(id)%>% drop_na()
+
+
+spG <- st_intersects(yGev.sf, d_ESY3_Gs)
+resG <- purrr::map_depth(spG, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resG)
+
+
+d_ESY3_G_ov <- cbind(yGev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY3_G_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY3_G_ov$lyr.1))
+
+d_ESY3_G <- d_ESY3_G85 %>%
+    filter(ESY3=="G")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yG <- list()
+for (i in 1:1152) {
+  ppp_obj <- ppp(d_ESY3_G$data[[i]]$X, d_ESY3_G$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yG[[i]] <- ppp_obj
+}
+
+testG <- map(yG, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+saveRDS(testG, "testG.rds")
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testG)) {
+  extracted_values.nni[[i]] <- testG[[i]][["statistic"]][["R"]]
+}
+combined_values.nniG <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniG
+
+nniG <- as.data.frame(nni) %>% cbind(id = d_ESY3_G$id)
+saveRDS(nniG, "nniG.rds")
+
+
+d_ESY2_G1s <- d_ESY3_G85 %>%
+    filter(ESY2=="G1")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+d_ESY2_G2s <- d_ESY3_G85 %>%
+    filter(ESY2=="G2")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+d_ESY2_G3s <- d_ESY3_G85 %>%
+    filter(ESY2=="G3")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+spG1 <- st_intersects(yGev.sf, d_ESY2_G1s)
+resG1 <- purrr::map_depth(spG1, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resG1)
+
+
+d_ESY2_G1_ov <- cbind(yGev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_G1_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_G1_ov$lyr.1))
+
+d_ESY2_G1 <- d_ESY3_G85 %>%
+    filter(ESY2=="G1")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yG1 <- list()
+for (i in 1:741) {
+  ppp_obj <- ppp(d_ESY2_G1$data[[i]]$X, d_ESY2_G1$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yG1[[i]] <- ppp_obj
+}
+
+testG1 <- map(yG1, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
 
 
 
+extracted_values.nni <- list()
+for (i in 1:length(testG1)) {
+  extracted_values.nni[[i]] <- testG1[[i]][["statistic"]][["R"]]
+}
+combined_values.nniG1 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniG1
+
+nniG1 <- as.data.frame(nni) %>% cbind(id = d_ESY2_G1$id)
+saveRDS(nniG1, "nniG1.rds")
+
+
+spG2 <- st_intersects(yGev.sf, d_ESY2_G2s)
+resG2 <- purrr::map_depth(spG2, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resG2)
+
+
+d_ESY2_G2_ov <- cbind(yGev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_G2_ov$geometry, st_bbox) 
+
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_G2_ov$lyr.1))
+
+d_ESY2_G2 <- d_ESY3_G85 %>%
+    filter(ESY2=="G2")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+
+yG2 <- list()
+for (i in 1:97) {
+  ppp_obj <- ppp(d_ESY2_G2$data[[i]]$X, d_ESY2_G2$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yG2[[i]] <- ppp_obj
+}
+
+testG2 <- map(yG2, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testG2)) {
+  extracted_values.nni[[i]] <- testG2[[i]][["statistic"]][["R"]]
+}
+combined_values.nniG2 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniG2
+
+nniG2 <- as.data.frame(nni) %>% cbind(id = d_ESY2_G2$id)
+saveRDS(nniG2, "nniG2.rds")
+
+spG3 <- st_intersects(yGev.sf, d_ESY2_G3s)
+resG3 <- purrr::map_depth(spG3, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resG3)
+
+
+d_ESY2_G3_ov <- cbind(yGev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_G3_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_G3_ov$lyr.1))
+
+d_ESY2_G3 <- d_ESY3_G85 %>%
+    filter(ESY2=="G3")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yG3 <- list()
+for (i in 1:498) {
+  ppp_obj <- ppp(d_ESY2_G3$data[[i]]$X, d_ESY2_G3$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yG3[[i]] <- ppp_obj
+}
+
+testG3 <- map(yG3, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
 
 
 
+extracted_values.nni <- list()
+for (i in 1:length(testG3)) {
+  extracted_values.nni[[i]] <- testG3[[i]][["statistic"]][["R"]]
+}
+combined_values.nniG3 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniG3
+
+nniG3 <- as.data.frame(nni) %>% cbind(id = d_ESY2_G3$id)
+saveRDS(nniG3, "nniG3.rds")
 
 
+#LEVEL 2 E
 
+d_ESY2_E1s <- d_ESY3_E85 %>%
+    filter(ESY2=="E1")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+d_ESY2_E2s <- d_ESY3_E85 %>%
+    filter(ESY2=="E2")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+d_ESY2_E3s <- d_ESY3_E85 %>%
+    filter(ESY2=="E3")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+d_ESY2_E4s <- d_ESY3_E85 %>%
+    filter(ESY2=="E4")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+
+d_ESY2_E5s <- d_ESY3_E85 %>%
+    filter(ESY2=="E5")%>%
+    dplyr::select(X, Y, id)%>%
+    drop_na()%>%
+    unique()%>%
+    st_as_sf(coords = c("X", "Y"), crs = st_crs(3035))
+
+spE1 <- st_intersects(yEev.sf, d_ESY2_E1s)
+resE1 <- purrr::map_depth(spE1, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resE1)
+
+
+d_ESY2_E1_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_E1_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E1_ov$lyr.1))
+
+d_ESY2_E1 <- d_ESY3_E85 %>%
+    filter(ESY2=="E1")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yE1 <- list()
+for (i in 1:183) {
+  ppp_obj <- ppp(d_ESY2_E1$data[[i]]$X, d_ESY2_E1$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yE1[[i]] <- ppp_obj
+}
+
+testE1 <- map(yE1, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testE1)) {
+  extracted_values.nni[[i]] <- testE1[[i]][["statistic"]][["R"]]
+}
+combined_values.nniE1 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniE1
+
+nniE1 <- as.data.frame(nni) %>% cbind(id = d_ESY2_E1$id)
+saveRDS(nniE1, "nniE1.rds")
+
+spE2 <- st_intersects(yEev.sf, d_ESY2_E2s)
+resE2 <- purrr::map_depth(spE2, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resE2)
+
+
+d_ESY2_E2_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_E2_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E2_ov$lyr.1))
+
+d_ESY2_E2 <- d_ESY3_E85 %>%
+    filter(ESY2=="E2")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yE2 <- list()
+for (i in 1:289) {
+    ppp_obj <- ppp(d_ESY2_E2$data[[i]]$X, d_ESY2_E2$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+    )
+    yE2[[i]] <- ppp_obj
+}
+
+testE2 <- map(yE2, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testE2)) {
+    extracted_values.nni[[i]] <- testE2[[i]][["statistic"]][["R"]]
+}
+combined_values.nniE2 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniE2
+
+nniE2 <- as.data.frame(nni) %>% cbind(id = d_ESY2_E2$id)
+saveRDS(nniE2, "nniE2.rds")
+
+spE3 <- st_intersects(yEev.sf, d_ESY2_E3s)
+resE3 <- purrr::map_depth(spE3, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resE3)
+
+
+d_ESY2_E3_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_E3_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E3_ov$lyr.1))
+
+d_ESY2_E3 <- d_ESY3_E85 %>%
+    filter(ESY2=="E3")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+yE3 <- list()
+for (i in 1:161) {
+    ppp_obj <- ppp(d_ESY2_E3$data[[i]]$X, d_ESY2_E3$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+    )
+    yE3[[i]] <- ppp_obj
+}
+
+testE3 <- map(yE3, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testE3)) {
+    extracted_values.nni[[i]] <- testE3[[i]][["statistic"]][["R"]]
+}
+combined_values.nniE3 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniE3
+
+nniE3 <- as.data.frame(nni) %>% cbind(id = d_ESY2_E3$id)
+saveRDS(nniE3, "nniE3.rds")
+
+spE4 <- st_intersects(yEev.sf, d_ESY2_E4s)
+resE4 <- purrr::map_depth(spE4, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resE4)
+
+
+d_ESY2_E4_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_E4_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E4_ov$lyr.1))
+
+d_ESY2_E4 <- d_ESY3_E85 %>%
+    filter(ESY2=="E4")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yE4 <- list()
+for (i in 1:58) {
+  ppp_obj <- ppp(d_ESY2_E4$data[[i]]$X, d_ESY2_E4$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yE4[[i]] <- ppp_obj
+}
+
+testE4 <- map(yE4, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testE4)) {
+  extracted_values.nni[[i]] <- testE4[[i]][["statistic"]][["R"]]
+}
+combined_values.nniE4 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniE4
+
+nniE4 <- as.data.frame(nni) %>% cbind(id = d_ESY2_E4$id)
+saveRDS(nniE4, "nniE4.rds")
+
+spE5 <- st_intersects(yEev.sf, d_ESY2_E5s)
+resE5 <- purrr::map_depth(spE5, 1, ~ifelse(is.null(.x), NA, .x) )
+
+
+OV_l <- unlist(resE5)
+
+
+d_ESY2_E5_ov <- cbind(yEev.sf, id=OV_l)%>%drop_na()%>%dplyr::select(lyr.1, geometry)
+bbox_list <- lapply(d_ESY2_E5_ov$geometry, st_bbox) 
+
+bbox_df <- data.frame(do.call(rbind, bbox_list)) %>% cbind(id=as.integer(d_ESY2_E5_ov$lyr.1))
+
+d_ESY2_E5 <- d_ESY3_E85 %>%
+    filter(ESY2=="E5")%>%
+    dplyr::select(X, Y, id)%>%
+    unique()%>%
+    arrange(id)%>%
+    inner_join(., bbox_df, by="id")%>%
+    group_by(id)%>% 
+    nest()
+
+bbox_id <- bbox_df %>%
+    dplyr::select(xmin,xmax,ymin,ymax)
+
+yE5 <- list()
+for (i in 1:65) {
+  ppp_obj <- ppp(d_ESY2_E5$data[[i]]$X, d_ESY2_E5$data[[i]]$Y, window = owin(c(bbox_id$xmin[i], bbox_id$xmax[i]), c(bbox_id$ymin[i], bbox_id$ymax[i]))
+  )
+  yE5[[i]] <- ppp_obj
+}
+
+testE5 <- map(yE5, ~ clarkevans.test(.x, alternative = 'clustered', correction="cdf"))
+
+
+extracted_values.nni <- list()
+for (i in 1:length(testE5)) {
+  extracted_values.nni[[i]] <- testE5[[i]][["statistic"]][["R"]]
+}
+combined_values.nniE5 <- unlist(extracted_values.nni)
+
+nni <- combined_values.nniE5
+
+nniE5 <- as.data.frame(nni) %>% cbind(id = d_ESY2_E5$id)
+saveRDS(nniE5, "nniE5.rds")
 
 
 
