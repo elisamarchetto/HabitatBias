@@ -3106,10 +3106,32 @@ colnames(df) <- c("J","id")
 saveRDS(df, "df.G3.rds")
 
 
+################### Prepare boxplots 0.65 and 0.85 threshold #########################
+
+# load rds of dimensions of bias as in prapare_boxplot file
+# prepare data.frame for boxplots and dot plots as in prapare_boxplot file
 
 
+p <- tot %>% mutate(across(Bias, factor, levels=c("Taxonomic","Spatial","Temporal"))) %>%
+    ggplot(., aes(x=Bias, y=Value, fill=Habitat))+ 
+    geom_half_violin(alpha = 0.6, side = "l")+
+    geom_half_boxplot(nudge = 0.05, outlier.color = "gray", side = "r")+
+    scale_fill_manual(values = c("#3399FF","#FF6600"))+
+    theme_light() +  theme(
+        axis.title.x = element_text(size=14,face = 'bold'),
+        axis.text.x = element_text(size = 10, face = 'bold'),
+        axis.title.y = element_text(size=14,face = 'bold'),
+        axis.text.y = element_text(size = 10, face = 'bold'),
+        axis.ticks.y=element_blank(),
+        text = element_text(size=12), 
+        strip.text = element_text(size=12))
 
-
+jpeg("boxplot1.jpeg",
+     width = 10,
+     height = 8,
+     res = 300, units="in")
+p
+dev.off()
 
 
 
@@ -3137,7 +3159,18 @@ p <- tot %>%
     strip.text = element_text(size = 12)
   )
 
+jpeg("botplot2.jpeg",
+     width = 10,
+     height = 8,
+     res = 300, units="in")
 p
+dev.off()
+
+########################### Statistic tests 0.75 threshold ###########################
+
+
+
+
 
 
 
